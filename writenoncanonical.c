@@ -16,6 +16,7 @@
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
+#define N_BYTES_FLAGS // Número de bytes pertencentes a FLAGS na Trama de Informação
 
 volatile int STOP=FALSE;
 
@@ -23,6 +24,11 @@ volatile int STOP=FALSE;
 #define A_C_SET 0x03
 #define C_UA 0x07
  
+#define C_I_0 0x00
+#define C_I_1 0x40
+
+#define N_BYTES_TO_SEND 5
+
 #define MAX_RETR 3
 #define TIMEOUT 3
 
@@ -62,6 +68,15 @@ void alarmHandler(int sigNum) {
     printf("Can't connect to Receptor! (After %d tries)\n", MAX_RETR);
     exit(1);
   }
+}
+
+unsigned char computeBcc2(unsigned char data[N_BYTES_TO_SEND]) {
+  int result = data[0];
+  
+  for(int i = 1; i < N_BYTES_TO_SEND; i++)
+    result ^= data[i];
+
+  return result;
 }
 
 int main(int argc, char** argv)
@@ -170,6 +185,11 @@ int main(int argc, char** argv)
     }
     readSuccessful = true;
     
+    // Trama de Informação para o Recetor
+    
+    sendData(0);
+    
+
     printf("\nEND!\n");
 
     sleep(1); // p.e em caso de o write não ter terminado
@@ -178,7 +198,52 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-
     close(fd);
     return 0;
+}
+
+void sendData(u_int c) {
+    unsigned char toSend[N_BYTES_FLAGS + (N_BYTES_TO_SEND * 2)];
+
+    toSend[0] = FLAG_SET; // F
+    toSend[1] = A_C_SET; // A
+    if(c == 0)
+      toSend[2] = C_I_0; // C
+    else if(c == 1)
+      toSend[2] = C_I_1; // C
+    toSend[3] = A_C_SET ^ A_C_SET; // BCC1
+    
+    unsigned char someRandomBytes[N_BYTES_TO_SEND * 2];
+    
+    // Data to Send
+    someRandomBytes[0] = '0A';
+    someRandomBytes[1] = '0B';
+    someRandomBytes[2] = '0C';
+    someRandomBytes[3] = '0D';
+    someRandomBytes[4] = '0E';
+    
+    int i = 0;
+    int j = 0;
+    while(someRandomBytes[i] != '\0') {
+      // if(someRandomBytes[i] == 0x7E) { // Há mais casos -> Slide 13
+      //   toSend[j] = 0x7D;
+      //   toSend[j + 1] = 0x5E; 
+      //   j++;
+      // }
+      // else if (someRandomBytes[i] == 0x7D) {
+      //   toSend[j] = 0x7D;
+      //   toSend[j + 1] = 0x5D; 
+      //   j++;
+      // }
+      // else
+      toSend[j] = someRandomBytes[i];
+      
+      i++;
+      j++;
+    }
+
+    toSend[j] = computeBcc2(someRandomBytes);
+    toSend[j + 1] = FLAG_SET;
+    
+    int res = write(fd, toSend, j + 2);   
 }

@@ -23,9 +23,9 @@ volatile int STOP=FALSE;
 #define FLAG_SET 0X7E
 #define A_C_SET 0x03
 #define C_UA 0x07
- 
-#define C_I_0 0x00
-#define C_I_1 0x40
+#define C_RR( n ) ( (n) ? 0x85 : 0x05 )
+
+#define C_I( n ) ( (n == 0) ? 0x00 : 0x40 )
 
 #define N_BYTES_TO_SEND 5
 
@@ -70,6 +70,60 @@ void alarmHandler(int sigNum) {
   }
 }
 
+void receiveMessage(bool withTimeout, unsigned char cField) {
+  if(withTimeout)
+    alarm(TIMEOUT);
+
+  unsigned char byte;
+  char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC_OK", "STOP" };
+  int i = 0, res;
+
+  while (strcmp(state[i], "STOP") != 0) {       /* loop for input */
+    printf("\nSTATE: %s\n", state[i]);
+    res = read(fd, &byte, 1);   /* returns after 1 chars have been input */
+    
+    if(withTimeout) {
+      if(res < 0 && !finish)  // Read interrupted by a signal
+        continue; // Jumps to another iteration
+    }
+    
+    printf("%p\n", byte);
+
+    switch (byte)
+    {
+      case FLAG_SET:
+        if(strcmp(state[i], "START") == 0 || strcmp(state[i], "BCC_OK") == 0)
+          i++;
+        else
+          i = 1; // STATE = FLAG_RCV
+        break;
+      case A_C_SET:
+        if(strcmp(state[i], "FLAG_RCV") == 0)
+          i++;
+        else 
+          i = 0; // Other_RCV
+        break;        
+      default: // Other_RCV
+        if(byte == (A_C_SET ^ cField)) {
+          if(strcmp(state[i], "C_RCV") == 0)
+            i++;
+          else 
+            i = 0; // Other_RCV
+          break;
+        }
+        if(byte == cField) {
+          if(strcmp(state[i], "A_RCV") == 0)
+            i++;
+          else
+            i = 0;
+          break;
+        }
+        i = 0; // STATE = START
+    }
+  }
+  readSuccessful = true;
+}
+
 unsigned char computeBcc2(unsigned char data[N_BYTES_TO_SEND]) {
   int result = data[0];
   
@@ -77,6 +131,49 @@ unsigned char computeBcc2(unsigned char data[N_BYTES_TO_SEND]) {
     result ^= data[i];
 
   return result;
+}
+
+void sendData(bool c) {
+    unsigned char toSend[N_BYTES_FLAGS + (N_BYTES_TO_SEND * 2)];
+
+    toSend[0] = FLAG_SET; // F
+    toSend[1] = A_C_SET; // A
+    toSend[2] = C_I(c);
+    toSend[3] = A_C_SET ^ toSend[2]; // BCC1
+    
+    unsigned char someRandomBytes[N_BYTES_TO_SEND * 2];
+    
+    // Data to Send
+    someRandomBytes[0] = 0x0A;
+    someRandomBytes[1] = 0x0B;
+    someRandomBytes[2] = 0x0C;
+    someRandomBytes[3] = 0x0D;
+    someRandomBytes[4] = 0x0E;
+    
+    int i = 0;
+    int j = 4;
+    while(someRandomBytes[i] != '\0') {
+      // if(someRandomBytes[i] == 0x7E) { // Há mais casos -> Slide 13
+      //   toSend[j] = 0x7D;
+      //   toSend[j + 1] = 0x5E; 
+      //   j++;
+      // }
+      // else if (someRandomBytes[i] == 0x7D) {
+      //   toSend[j] = 0x7D;
+      //   toSend[j + 1] = 0x5D; 
+      //   j++;
+      // }
+      // else
+      toSend[j] = someRandomBytes[i];
+      
+      i++;
+      j++;
+    }
+
+    toSend[j] = computeBcc2(someRandomBytes);
+    toSend[j + 1] = FLAG_SET;
+    
+    int res = write(fd, toSend, 5 + j + 2);   
 }
 
 int main(int argc, char** argv)
@@ -138,57 +235,19 @@ int main(int argc, char** argv)
     
     // RECEIVE UA
 
-    alarm(TIMEOUT);
-
-    char byte;
-    char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC_OK", "STOP" };
-    i = 0;
-
-    while (strcmp(state[i], "STOP") != 0) {       /* loop for input */
-      printf("\nSTATE: %s\n", state[i]);
-      res = read(fd, &byte, 1);   /* returns after 1 chars have been input */
-      
-      if(res < 0 && !finish)  // Read interrupted by a signal
-        continue; // Jumps to another iteration
-      
-      printf("%p", byte);
-
-      switch (byte)
-      {
-        case FLAG_SET:
-          if(strcmp(state[i], "START") == 0 || strcmp(state[i], "BCC_OK") == 0)
-            i++;
-          else
-            i = 1; // STATE = FLAG_RCV
-          break;
-        case A_C_SET:
-          if(strcmp(state[i], "FLAG_RCV") == 0)
-            i++;
-          else 
-            i = 0; // Other_RCV
-          break;
-        case C_UA:
-          if(strcmp(state[i], "A_RCV") == 0)
-            i++;
-          else
-            i = 0;
-          break;
-        case A_C_SET ^ C_UA: // BCC
-          if(strcmp(state[i], "C_RCV") == 0)
-            i++;
-          else 
-            i = 0; // Other_RCV
-          break;
-        default: // Other_RCV
-          i = 0; // STATE = START
-      }
-    }
-    readSuccessful = true;
+    receiveMessage(true, C_UA);
     
     // Trama de Informação para o Recetor
+    printf("\nSENT TRAMA!\n");
+
+    bool tNumber = false; // [Ns = 0]
+    sendData(tNumber);
     
-    sendData(0);
+    printf("\nReceiving RR\n");
     
+    receiveMessage(false, C_RR(!tNumber)); // [Nr = 1]
+
+
 
     printf("\nEND!\n");
 
@@ -202,48 +261,3 @@ int main(int argc, char** argv)
     return 0;
 }
 
-void sendData(u_int c) {
-    unsigned char toSend[N_BYTES_FLAGS + (N_BYTES_TO_SEND * 2)];
-
-    toSend[0] = FLAG_SET; // F
-    toSend[1] = A_C_SET; // A
-    if(c == 0)
-      toSend[2] = C_I_0; // C
-    else if(c == 1)
-      toSend[2] = C_I_1; // C
-    toSend[3] = A_C_SET ^ A_C_SET; // BCC1
-    
-    unsigned char someRandomBytes[N_BYTES_TO_SEND * 2];
-    
-    // Data to Send
-    someRandomBytes[0] = '0A';
-    someRandomBytes[1] = '0B';
-    someRandomBytes[2] = '0C';
-    someRandomBytes[3] = '0D';
-    someRandomBytes[4] = '0E';
-    
-    int i = 0;
-    int j = 0;
-    while(someRandomBytes[i] != '\0') {
-      // if(someRandomBytes[i] == 0x7E) { // Há mais casos -> Slide 13
-      //   toSend[j] = 0x7D;
-      //   toSend[j + 1] = 0x5E; 
-      //   j++;
-      // }
-      // else if (someRandomBytes[i] == 0x7D) {
-      //   toSend[j] = 0x7D;
-      //   toSend[j + 1] = 0x5D; 
-      //   j++;
-      // }
-      // else
-      toSend[j] = someRandomBytes[i];
-      
-      i++;
-      j++;
-    }
-
-    toSend[j] = computeBcc2(someRandomBytes);
-    toSend[j + 1] = FLAG_SET;
-    
-    int res = write(fd, toSend, j + 2);   
-}

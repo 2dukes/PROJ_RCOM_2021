@@ -4,8 +4,6 @@
 
 volatile int STOP=FALSE;
 
-bool readSuccessful = false; // To be used in the future?
-
 int receiveTrama(bool nTrama, int fd) {
   unsigned char buf;
   char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC1_OK", "STOP" };
@@ -22,10 +20,24 @@ int receiveTrama(bool nTrama, int fd) {
     res = read(fd, &buf, 1);   /* returns after 1 chars have been input */
     printf("%p\n", buf);
 
+    // Special cases (as they use dynamic fields)
+    if(buf == (A_C_SET ^ cField)) { // BCC1
+      if(strcmp(state[i], "C_RCV") == 0) {
+        i++;
+        continue;
+      }
+    }
+    else if(buf == cField) { // C
+      if(strcmp(state[i], "A_RCV") == 0) {
+        i++;
+        continue;
+      }
+    }
+
     switch (buf)
     {
       case FLAG_SET:
-        if(strcmp(state[i], "START") == 0 || strcmp(state[i], "BCC1_OK") == 0 || strcmp(state[i], "DATA_RCV") == 0)
+        if(strcmp(state[i], "START") == 0 || strcmp(state[i], "BCC1_OK") == 0)
           i++;
         else if(strcmp(state[i], "BCC1_OK") != 0)
           i = 1; // STATE = FLAG_RCV
@@ -33,11 +45,7 @@ int receiveTrama(bool nTrama, int fd) {
 
       case A_C_SET: // A or BCC1 if [Ns = 0] 
         if(strcmp(state[i], "FLAG_RCV") == 0)
-          i++;
-        else if(strcmp(state[i], "C_RCV") == 0) {
-            if(buf == A_C_SET ^ cField && !nTrama_Sender) // BCC1 & [Ns = 0] -> A e BCC1 terão o mesmo valor.
-              i++;            
-        }
+          i++;         
         else if(strcmp(state[i], "BCC1_OK") != 0)
           i = 0; // Other_RCV
         else
@@ -46,29 +54,10 @@ int receiveTrama(bool nTrama, int fd) {
 
       default: // Other_RCV
         // printf("W: %p | %p | %p | %d\n", buf, A_C_SET ^ cField, cField, buf == cField);
-        if(buf == (A_C_SET ^ cField)) { // BCC1
-          if(strcmp(state[i], "C_RCV") == 0)
-            i++;
-          else if(strcmp(state[i], "BCC1_OK") != 0)
-            i = 0; // Other_RCV
-          else
-            dataBytes[index++] = buf;
-          break;
-        }
-        if(buf == cField) { // C
-          if(strcmp(state[i], "A_RCV") == 0)
-            i++;
-          else if(strcmp(state[i], "BCC1_OK") != 0)
-            i = 0; // Other_RCV
-          else
-            dataBytes[index++] = buf;
-          break;
-        }
-        if(strcmp(state[i], "BCC1_OK") != 0) {
-          i = 0; // STATE = START
-        }
-        else
+        if(strcmp(state[i], "BCC1_OK") == 0) 
           dataBytes[index++] = buf;
+        else
+          i = 0;
     }
   } 
 
@@ -96,7 +85,7 @@ int main(int argc, char** argv)
     printf("New termios structure set\n");
 
     // RECEIVE SET
-    receiveSupervisionTrama(false, getCField("SET", false), &readSuccessful, fd);
+    receiveSupervisionTrama(false, getCField("SET", false), fd);
 
     // SEND UA 
     sendSupervisionTrama(fd, getCField("UA", false));

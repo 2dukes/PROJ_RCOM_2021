@@ -89,7 +89,7 @@ int main(int argc, char** argv)
     sendSupervisionTrama(fd, getCField("SET", false));
     
     // RECEIVE UA
-    receiveSupervisionTrama(true, getCField("UA", false), &readSuccessful, fd);
+    readSuccessful = receiveSupervisionTrama(true, getCField("UA", false), fd);
     
     // Trama de Informação para o Recetor
     printf("\nSENT TRAMA!\n");
@@ -99,7 +99,7 @@ int main(int argc, char** argv)
     
     printf("\nReceiving RR\n");
     
-    receiveSupervisionTrama(false, getCField("RR", !tNumber), &readSuccessful, fd); // [Nr = 1]
+    receiveSupervisionTrama(false, getCField("RR", !tNumber), fd); // [Nr = 1]
 
     printf("\nEND!\n");
 

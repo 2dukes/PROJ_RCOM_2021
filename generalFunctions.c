@@ -66,7 +66,7 @@ int configureSerialPort(char argv1[50], struct termios* oldtio, struct termios* 
     return fd;
 }
 
-void receiveSupervisionTrama(bool withTimeout, unsigned char cField, bool* readSuccessful, int fd) {
+bool receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
   if(withTimeout)
     alarm(TIMEOUT);
 
@@ -117,7 +117,8 @@ void receiveSupervisionTrama(bool withTimeout, unsigned char cField, bool* readS
         i = 0; // STATE = START
     }
   }
-  *readSuccessful = true;
+
+  return true;
 }
 
 void sendSupervisionTrama(int fd, unsigned char cField) {

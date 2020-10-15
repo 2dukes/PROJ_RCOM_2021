@@ -85,13 +85,13 @@ bool receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
     
     printf("%p | %p\n", byte, cField);
     
-    if(byte == (A_C_SET ^ cField)) {
+    if(byte == (A_C_SET ^ cField)) { // BCC1
         if(strcmp(state[i], "C_RCV") == 0) {
             i++;
             continue;
         }
     }
-    else if(byte == cField) {
+    else if(byte == cField) { // C
         if(strcmp(state[i], "A_RCV") == 0) {
             i++;
             continue;
@@ -106,7 +106,7 @@ bool receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
         else
           i = 1; // STATE = FLAG_RCV
         break;
-      case A_C_SET:
+      case A_C_SET: // A
         if(strcmp(state[i], "FLAG_RCV") == 0)
           i++;
         else
@@ -117,7 +117,7 @@ bool receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
         i = 0; // STATE = START
     }
   }
-
+    
   return true;
 }
 

@@ -4,13 +4,14 @@
 
 volatile int STOP=FALSE;
 
+unsigned char bytesReceived[BUF_MAX_SIZE][BUF_MAX_SIZE];
+
 int receiveTrama(bool nTrama, int fd) {
   unsigned char buf;
   char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC1_OK", "STOP" };
   int i = 0, res;
 
-  bool nTrama_Sender = !nTrama; // [Ns = 0 | 1]
-  unsigned char cField = C_I(!nTrama);
+  unsigned char cField = C_I(!nTrama); // !nTrama = [Ns = 0 | 1]
 
   unsigned char dataBytes[BUF_MAX_SIZE];
   int index = 0;
@@ -33,7 +34,7 @@ int receiveTrama(bool nTrama, int fd) {
         continue;
       }
     }
-
+  
     switch (buf)
     {
       case FLAG_SET:
@@ -42,8 +43,7 @@ int receiveTrama(bool nTrama, int fd) {
         else if(strcmp(state[i], "BCC1_OK") != 0)
           i = 1; // STATE = FLAG_RCV
         break;
-
-      case A_C_SET: // A or BCC1 if [Ns = 0] 
+      case A_C_SET: // A 
         if(strcmp(state[i], "FLAG_RCV") == 0)
           i++;         
         else if(strcmp(state[i], "BCC1_OK") != 0)
@@ -52,16 +52,17 @@ int receiveTrama(bool nTrama, int fd) {
           dataBytes[index++] = buf;
         break;  
 
-      default: // Other_RCV
+      default: 
         // printf("W: %p | %p | %p | %d\n", buf, A_C_SET ^ cField, cField, buf == cField);
         if(strcmp(state[i], "BCC1_OK") == 0) 
           dataBytes[index++] = buf;
-        else
+        else // Other_RCV
           i = 0;
     }
   } 
 
   // At this point dataBytes[index - 1] holds BCC2
+  // printf("%p | %p | %p | %p | %p | %d\n", dataBytes[0], dataBytes[1], dataBytes[2], dataBytes[3], dataBytes[4], index - 1);
   unsigned char bcc2 = computeBcc2(dataBytes, index - 1);
   if(bcc2 != dataBytes[index - 1])
     return -1; // Error
@@ -98,7 +99,6 @@ int main(int argc, char** argv)
       printf("\nAll good!\n");
 
     printf("Sendign RR\n");
-
 
     sendSupervisionTrama(fd, getCField("RR", tNumber));
 

@@ -83,8 +83,8 @@ bool receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
         continue; // Jumps to another iteration
     }
     
-    printf("%p\n", byte);
-
+    printf("%p | %p\n", byte, cField);
+    
     if(byte == (A_C_SET ^ cField)) {
         if(strcmp(state[i], "C_RCV") == 0) {
             i++;
@@ -132,7 +132,6 @@ void sendSupervisionTrama(int fd, unsigned char cField) {
     buf[4] = FLAG_SET;
 
     // printf("-%d-\n", sizeof(buf));
-    printf("\nSending SET...\n");
     res = write(fd, buf, sizeof(buf));   
     printf("%d bytes written\n", res);
 }

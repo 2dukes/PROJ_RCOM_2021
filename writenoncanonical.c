@@ -94,12 +94,11 @@ int main(int argc, char** argv)
     // Trama de Informação para o Recetor
     printf("\nSENT TRAMA!\n");
 
-    bool tNumber = false; // [Ns = 0]
+    bool tNumber = true; // [Ns = 0 | 1]
     sendData(tNumber);
     
     printf("\nReceiving RR\n");
-    
-    receiveSupervisionTrama(false, getCField("RR", !tNumber), fd); // [Nr = 1]
+    receiveSupervisionTrama(false, getCField("RR", !tNumber), fd); // [Nr = 0 | 1]
 
     printf("\nEND!\n");
 

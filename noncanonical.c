@@ -93,14 +93,14 @@ int main(int argc, char** argv)
     // Receive Trama (I)
     printf("Starting Receive Trama (I)\n");
     
-    bool tNumber = true; // [Nr = 1]
+    bool tNumber = false; // [Nr = 0 | 1]
     if(receiveTrama(tNumber, fd) == 0)
       printf("\nAll good!\n");
 
     printf("Sendign RR\n");
 
 
-    sendSupervisionTrama(fd, getCField("RR", C_RR(tNumber)));
+    sendSupervisionTrama(fd, getCField("RR", tNumber));
 
     printf("END!\n");    
 

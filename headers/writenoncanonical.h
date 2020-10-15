@@ -16,4 +16,4 @@
 
 void alarmHandler(int sigNum);
 
-void sendData(bool c);
+void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size);

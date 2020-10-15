@@ -24,48 +24,53 @@ void alarmHandler(int sigNum) {
   }
 }
 
-void sendData(bool c) {
-    unsigned char toSend[N_BYTES_FLAGS + (N_BYTES_TO_SEND * 2)];
+void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size) {
+    unsigned char toSend[N_BYTES_FLAGS + (N_BYTES_TO_SEND * 2)]; // Buffer da mensagem a enviar
 
-    toSend[0] = FLAG_SET; // F
-    toSend[1] = A_C_SET; // A
-    toSend[2] = C_I(c);
-    toSend[3] = A_C_SET ^ toSend[2]; // BCC1
-    
-    unsigned char someRandomBytes[N_BYTES_TO_SEND * 2];
-    
-    // Data to Send
-    someRandomBytes[0] = 0x0A;
-    someRandomBytes[1] = 0x0B;
-    someRandomBytes[2] = 0x0C;
-    someRandomBytes[3] = 0x0D;
-    someRandomBytes[4] = 0x0E;
-    
     int i = 0;
-    int j = 4;
-    while(i < N_BYTES_TO_SEND) {
-      // if(someRandomBytes[i] == 0x7E) { // Há mais casos -> Slide 13
-      //   toSend[j] = 0x7D;
-      //   toSend[j + 1] = 0x5E; 
-      //   j++;
-      // }
-      // else if (someRandomBytes[i] == 0x7D) {
-      //   toSend[j] = 0x7D;
-      //   toSend[j + 1] = 0x5D; 
-      //   j++;
-      // }
-      // else
-      toSend[j] = someRandomBytes[i];
-      
-      i++;
-      j++;
-    }
+    int j;
+    int nTramasSent = 0;
+    while(i < size) {
+      j = 4;
+    
+      toSend[0] = FLAG_SET; // F
+      toSend[1] = A_C_SET; // A
+      toSend[2] = C_I(nTrama); // C
+      toSend[3] = A_C_SET ^ toSend[2]; // BCC1
 
-    toSend[j] = computeBcc2(someRandomBytes, N_BYTES_TO_SEND);
-    toSend[j + 1] = FLAG_SET;
+      int nBytesRead = 0;
+      while(nBytesRead < N_BYTES_TO_SEND && i < size) {
+        // if(someRandomBytes[i] == 0x7E) { // Há mais casos -> Slide 13
+        //   toSend[j] = 0x7D;
+        //   toSend[j + 1] = 0x5E; 
+        //   j++;
+        // }
+        // else if (someRandomBytes[i] == 0x7D) {
+        //   toSend[j] = 0x7D;
+        //   toSend[j + 1] = 0x5D; 
+        //   j++;
+        // }
+        // else
+        toSend[j] = buf[i];
         
-    int res = write(fd, toSend, 4 + i + 2);   
+        nBytesRead++;
+        i++;
+        j++;
+      }
+      toSend[j] = computeBcc2(buf, nBytesRead, nTramasSent * N_BYTES_TO_SEND);
+      toSend[j + 1] = FLAG_SET;
+
+      int res = write(fd, toSend, N_BYTES_FLAGS + nBytesRead);
+      
+      printf("\nReceiving RR\n");
+      receiveSupervisionTrama(false, getCField("RR", !nTrama), fd); // [Nr = 0 | 1]
+      
+      nTrama = !nTrama;   
+      nTramasSent++;
+    }
 }
+
+    
 
 int main(int argc, char** argv)
 {
@@ -95,11 +100,23 @@ int main(int argc, char** argv)
   // Trama de Informação para o Recetor
   printf("\nSENT TRAMA!\n");
 
-  bool tNumber = true; // [Ns = 0 | 1]
-  sendData(tNumber);
+  bool tNumber = false; // [Ns = 0 | 1]
+
+  // Data to Send
+  unsigned char someRandomBytes[BUF_MAX_SIZE];
+  someRandomBytes[0] = 0x0A;
+  someRandomBytes[1] = 0xFB;
+  someRandomBytes[2] = 0xCC;
+  someRandomBytes[3] = 0xED;
+  someRandomBytes[4] = 0x0E;
+  someRandomBytes[5] = 0x0A;
+  someRandomBytes[6] = 0xFB;
+  someRandomBytes[7] = 0x0C;
+  someRandomBytes[8] = 0x4D;
+  someRandomBytes[9] = '\0';
   
-  printf("\nReceiving RR\n");
-  receiveSupervisionTrama(false, getCField("RR", !tNumber), fd); // [Nr = 0 | 1]
+  printf("Tamanho do buffer: %d\n", strlen(someRandomBytes));
+  sendData(tNumber, someRandomBytes, strlen(someRandomBytes));
 
   printf("\nEND!\n");
 
@@ -112,6 +129,7 @@ int main(int argc, char** argv)
   close(fd);
   return 0;
 }
+
 
 // HOW TO COMPILE!
 // gcc noncanonical.c generalFunctions.c -o nC

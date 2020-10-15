@@ -14,7 +14,7 @@
 
 unsigned char getCField(char typeMessage[25], bool nTrama);
 
-unsigned char computeBcc2(unsigned char data[BUF_MAX_SIZE], int nBytes);
+unsigned char computeBcc2(unsigned char data[BUF_MAX_SIZE], int nBytes, int startPosition);
 
 /*
       Open serial port device for reading and writing and not as controlling tty

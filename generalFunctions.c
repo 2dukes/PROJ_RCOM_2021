@@ -21,10 +21,10 @@ unsigned char getCField(char typeMessage[25], bool nTrama) {
         return C_REJ(nTrama);
 }
 
-unsigned char computeBcc2(unsigned char data[BUF_MAX_SIZE], int nBytes) {
-  int result = data[0];
+unsigned char computeBcc2(unsigned char data[BUF_MAX_SIZE], int nBytes, int startPosition) {
+  int result = data[startPosition];
   
-  for(int i = 1; i < nBytes; i++)
+  for(int i = startPosition + 1; i < startPosition + nBytes; i++)
     result ^= data[i];
 
   return result;

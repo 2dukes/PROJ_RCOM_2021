@@ -63,7 +63,7 @@ int receiveTrama(bool nTrama, int fd) {
 
   // At this point dataBytes[index - 1] holds BCC2
   // printf("%p | %p | %p | %p | %p | %d\n", dataBytes[0], dataBytes[1], dataBytes[2], dataBytes[3], dataBytes[4], index - 1);
-  unsigned char bcc2 = computeBcc2(dataBytes, index - 1);
+  unsigned char bcc2 = computeBcc2(dataBytes, index - 1, 0);
   if(bcc2 != dataBytes[index - 1])
     return -1; // Error
   return 0;
@@ -94,14 +94,19 @@ int main(int argc, char** argv)
     // Receive Trama (I)
     printf("Starting Receive Trama (I)\n");
     
-    bool tNumber = false; // [Nr = 0 | 1]
-    if(receiveTrama(tNumber, fd) == 0)
-      printf("\nAll good!\n");
-
-    printf("Sendign RR\n");
-
-    sendSupervisionTrama(fd, getCField("RR", tNumber));
-
+    bool tNumber = true; // [Nr = 0 | 1]
+    int i = 0;
+    while(i++ < 2) {
+      if(receiveTrama(tNumber, fd) == 0)
+        printf("\nReceived Trama %d with success!\n", i);
+      else
+        printf("Didn't receive Trama %d with success!\n", i);
+      
+      printf("\nSendign RR\n");
+      sendSupervisionTrama(fd, getCField("RR", tNumber));
+      tNumber = !tNumber;
+    }
+  
     printf("END!\n");    
 
     sleep(1);

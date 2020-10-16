@@ -4,14 +4,19 @@
 
 volatile int STOP=FALSE;
 
-unsigned char bytesReceived[BUF_MAX_SIZE][BUF_MAX_SIZE];
+unsigned char receivedBytes[2][BUF_MAX_SIZE];
 
-int receiveTrama(bool nTrama, int fd) {
+bool checkrepeatedTrama(unsigned char data[BUF_MAX_SIZE], int nBytes) {
+  return true;
+}
+
+int receiveTrama(bool* nTrama, int fd) {
   unsigned char buf;
   char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC1_OK", "STOP" };
   int i = 0, res;
+  bool repeatedByte = false;
 
-  unsigned char cField = C_I(!nTrama); // !nTrama = [Ns = 0 | 1]
+  unsigned char cField = C_I(*nTrama); // !nTrama = [Ns = 0 | 1]
 
   unsigned char dataBytes[BUF_MAX_SIZE];
   int index = 0;
@@ -28,7 +33,7 @@ int receiveTrama(bool nTrama, int fd) {
         continue;
       }
     }
-    else if(buf == cField) { // C
+    else if(buf == C_I(*nTrama) || buf == C_I(!(*nTrama))) { // C
       if(strcmp(state[i], "A_RCV") == 0) {
         i++;
         continue;
@@ -61,11 +66,22 @@ int receiveTrama(bool nTrama, int fd) {
     }
   } 
 
-  // At this point dataBytes[index - 1] holds BCC2
   // printf("%p | %p | %p | %p | %p | %d\n", dataBytes[0], dataBytes[1], dataBytes[2], dataBytes[3], dataBytes[4], index - 1);
+
+  // At this point dataBytes[index - 1] holds BCC2
   unsigned char bcc2 = computeBcc2(dataBytes, index - 1, 0);
-  if(bcc2 != dataBytes[index - 1])
-    return -1; // Error
+  if(bcc2 != dataBytes[index - 1]) {
+    // checkRepeatedTrama() and compare if *nTrama == (received cField) 
+    if(repeatedByte)
+      return 2; // Status Code for Repeated Byte
+    else
+      return -1; // Status Code Error -> PEDIR RETRANSMISSÃO (REJ)
+  }
+  // checkRepeatedTrama() and compare if *nTrama == (received cField) 
+  if(repeatedByte)
+    return 2;
+  else
+    *nTrama = !(*nTrama);
   return 0;
 }
 
@@ -94,17 +110,18 @@ int main(int argc, char** argv)
     // Receive Trama (I)
     printf("Starting Receive Trama (I)\n");
     
-    bool tNumber = true; // [Nr = 0 | 1]
-    int i = 0;
+    bool tNumber = false; // [Nr = 0 | 1]
+    int i = 0, statusCode;
     while(i++ < 2) {
-      if(receiveTrama(tNumber, fd) == 0)
+      statusCode = receiveTrama(&tNumber, fd);
+      if(statusCode == 0) 
         printf("\nReceived Trama %d with success!\n", i);
       else
         printf("Didn't receive Trama %d with success!\n", i);
       
       printf("\nSendign RR\n");
       sendSupervisionTrama(fd, getCField("RR", tNumber));
-      tNumber = !tNumber;
+      // tNumber = !tNumber;
     }
   
     printf("END!\n");    

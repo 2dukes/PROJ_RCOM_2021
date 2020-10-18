@@ -66,13 +66,19 @@ int configureSerialPort(char argv1[50], struct termios* oldtio, struct termios* 
     return fd;
 }
 
-bool receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
+int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
   if(withTimeout)
     alarm(TIMEOUT);
 
   unsigned char byte;
   char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC_OK", "STOP" };
   int i = 0, res;
+
+  // returnState:
+  // 1 | readSuccessful 
+  // 2 | REJ   
+
+  int returnState = 1;
 
   while (strcmp(state[i], "STOP") != 0) {       /* loop for input */
     printf("\nSTATE: %s\n", state[i]);
@@ -83,7 +89,7 @@ bool receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
         continue; // Jumps to another iteration
     }
     
-    printf("%p | %p\n", byte, cField);
+    printf("%p\n", byte);
     
     if(byte == (A_C_SET ^ cField)) { // BCC1
         if(strcmp(state[i], "C_RCV") == 0) {
@@ -91,8 +97,16 @@ bool receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
             continue;
         }
     }
-    else if(byte == cField) { // C
+    else if(byte == cField || byte == C_REJ(0) || byte == C_REJ(1)) { // C
         if(strcmp(state[i], "A_RCV") == 0) {
+            if(byte == C_REJ(0)) {
+              returnState = 2;
+              cField = C_REJ(0);
+            }  
+            else if(byte == C_REJ(1)) {
+              returnState = 3;
+              cField = C_REJ(1);
+            }
             i++;
             continue;
         }
@@ -118,7 +132,7 @@ bool receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
     }
   }
     
-  return true;
+  return returnState;
 }
 
 void sendSupervisionTrama(int fd, unsigned char cField) {

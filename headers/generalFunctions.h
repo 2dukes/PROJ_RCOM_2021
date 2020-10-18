@@ -22,6 +22,6 @@ unsigned char computeBcc2(unsigned char data[BUF_MAX_SIZE], int nBytes, int star
 */
 int configureSerialPort(char argv1[50], struct termios* oldtio, struct termios* newtio);
 
-bool receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd);
+int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd);
 
 void sendSupervisionTrama(int fd, unsigned char cField);

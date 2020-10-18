@@ -13,4 +13,4 @@
 #include "macros.h"
 #include "generalFunctions.h"
 
-int receiveTrama(bool* nTrama, int fd);
+int receiveTrama(int* nTrama, int fd);

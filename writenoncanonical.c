@@ -37,7 +37,7 @@ void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size) {
       toSend[1] = A_C_SET; // A
       toSend[2] = C_I(nTrama); // C
       toSend[3] = A_C_SET ^ toSend[2]; // BCC1
-
+      
       int nBytesRead = 0;
       while(nBytesRead < N_BYTES_TO_SEND && i < size) {
         // if(someRandomBytes[i] == 0x7E) { // Há mais casos -> Slide 13
@@ -56,17 +56,23 @@ void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size) {
         nBytesRead++;
         i++;
         j++;
-      }
+      }   
+
       toSend[j] = computeBcc2(buf, nBytesRead, nTramasSent * N_BYTES_TO_SEND);
       toSend[j + 1] = FLAG_SET;
 
+      printf("\nSENT TRAMA (%d)!\n", nTrama);
       int res = write(fd, toSend, N_BYTES_FLAGS + nBytesRead);
       
-      printf("\nReceiving RR\n");
-      receiveSupervisionTrama(false, getCField("RR", !nTrama), fd); // [Nr = 0 | 1]
+      printf("\nReceiving RR / REJ\n");
+      int returnState = receiveSupervisionTrama(false, getCField("RR", !nTrama), fd); // [Nr = 0 | 1]
       
+      if(returnState != 1) // Retransmissão da última trama enviada
+        i -= nBytesRead;
+      else
+        nTramasSent++;
+
       nTrama = !nTrama;   
-      nTramasSent++;
     }
 }
 
@@ -95,10 +101,9 @@ int main(int argc, char** argv)
   sendSupervisionTrama(fd, getCField("SET", false));
   
   // RECEIVE UA
-  readSuccessful = receiveSupervisionTrama(true, getCField("UA", false), fd);
+  readSuccessful = receiveSupervisionTrama(true, getCField("UA", false), fd) == 1;
   
   // Trama de Informação para o Recetor
-  printf("\nSENT TRAMA!\n");
 
   bool tNumber = false; // [Ns = 0 | 1]
 
@@ -111,12 +116,12 @@ int main(int argc, char** argv)
   someRandomBytes[4] = 0x0E;
   someRandomBytes[5] = 0x0A;
   someRandomBytes[6] = 0xFB;
-  someRandomBytes[7] = 0x0C;
-  someRandomBytes[8] = 0x4D;
-  someRandomBytes[9] = '\0';
+  someRandomBytes[7] = 0xCC;
+  someRandomBytes[8] = 0xED;
+  someRandomBytes[9] = 0X0E;
   
-  printf("Tamanho do buffer: %d\n", strlen(someRandomBytes));
-  sendData(tNumber, someRandomBytes, strlen(someRandomBytes));
+  // printf("Tamanho do buffer: %d\n", sizeof(someRandomBytes));
+  sendData(tNumber, someRandomBytes, 10);
 
   printf("\nEND!\n");
 

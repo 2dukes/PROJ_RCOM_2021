@@ -4,19 +4,13 @@
 
 volatile int STOP=FALSE;
 
-unsigned char receivedBytes[2][BUF_MAX_SIZE];
-
-bool checkrepeatedTrama(unsigned char data[BUF_MAX_SIZE], int nBytes) {
-  return true;
-}
-
-int receiveTrama(bool* nTrama, int fd) {
+int receiveTrama(int* nTrama, int fd) {
   unsigned char buf;
   char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC1_OK", "STOP" };
   int i = 0, res;
   bool repeatedByte = false;
 
-  unsigned char cField = C_I(*nTrama); // !nTrama = [Ns = 0 | 1]
+  bool cFlag; // !nTrama = [Ns = 0 | 1]
 
   unsigned char dataBytes[BUF_MAX_SIZE];
   int index = 0;
@@ -27,14 +21,22 @@ int receiveTrama(bool* nTrama, int fd) {
     printf("%p\n", buf);
 
     // Special cases (as they use dynamic fields)
-    if(buf == (A_C_SET ^ cField)) { // BCC1
+    if(buf == (A_C_SET ^ C_I(*nTrama)) || buf == (A_C_SET ^ C_I(!(*nTrama)))) { // BCC1
       if(strcmp(state[i], "C_RCV") == 0) {
         i++;
         continue;
       }
     }
-    else if(buf == C_I(*nTrama) || buf == C_I(!(*nTrama))) { // C
+    else if(buf == C_I(0)) { // C -> Determined in run-time
       if(strcmp(state[i], "A_RCV") == 0) {
+        cFlag = 0; 
+        i++;
+        continue;
+      }
+    }
+    else if(buf == C_I(1)) { // C -> Determined in run-time
+      if(strcmp(state[i], "A_RCV") == 0) {
+        cFlag = 1;
         i++;
         continue;
       }
@@ -67,21 +69,21 @@ int receiveTrama(bool* nTrama, int fd) {
   } 
 
   // printf("%p | %p | %p | %p | %p | %d\n", dataBytes[0], dataBytes[1], dataBytes[2], dataBytes[3], dataBytes[4], index - 1);
+  if(cFlag == *nTrama) // repeatedByte
+    repeatedByte = true;
+
+  *nTrama = cFlag;
 
   // At this point dataBytes[index - 1] holds BCC2
   unsigned char bcc2 = computeBcc2(dataBytes, index - 1, 0);
   if(bcc2 != dataBytes[index - 1]) {
-    // checkRepeatedTrama() and compare if *nTrama == (received cField) 
-    if(repeatedByte)
-      return 2; // Status Code for Repeated Byte
+    if(repeatedByte) 
+      return 2; // Status Code for Repeated Byte -> Descartar campo de dados
     else
       return -1; // Status Code Error -> PEDIR RETRANSMISSÃO (REJ)
   }
-  // checkRepeatedTrama() and compare if *nTrama == (received cField) 
-  if(repeatedByte)
-    return 2;
-  else
-    *nTrama = !(*nTrama);
+  if(repeatedByte) 
+    return 2; // Status Code for Repeated Byte -> Descartar campo de dados
   return 0;
 }
 
@@ -110,18 +112,27 @@ int main(int argc, char** argv)
     // Receive Trama (I)
     printf("Starting Receive Trama (I)\n");
     
-    bool tNumber = false; // [Nr = 0 | 1]
+    int tNumber = -1; // [Nr = 0 | 1]
     int i = 0, statusCode;
-    while(i++ < 2) {
+    while(i < 2) {
+      // VALORES DE C são gerados consoante recebidos! CORRIGIR
       statusCode = receiveTrama(&tNumber, fd);
-      if(statusCode == 0) 
-        printf("\nReceived Trama %d with success!\n", i);
-      else
+      if(statusCode == 0) {
+        printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
+        sendSupervisionTrama(fd, getCField("RR", !tNumber));
+        i++;
+      }
+      else {
         printf("Didn't receive Trama %d with success!\n", i);
-      
-      printf("\nSendign RR\n");
-      sendSupervisionTrama(fd, getCField("RR", tNumber));
-      // tNumber = !tNumber;
+        if(statusCode == 2) {
+          printf("\n-- Repeated Byte --\n\nSendign RR (%d)\n", !tNumber);
+          sendSupervisionTrama(fd, getCField("RR",! tNumber));
+        }
+        else if(statusCode == -1) { // Send REJ
+          printf("\n-- Retransmit Byte --\n\nSendign REJ (%d)\n", !tNumber);
+          sendSupervisionTrama(fd, getCField("REJ", tNumber));
+        }
+      }
     }
   
     printf("END!\n");    

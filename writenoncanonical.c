@@ -5,14 +5,19 @@
 volatile int STOP=FALSE;
 
 int numRetries = 0;
-bool readSuccessful = false;
+bool readSuccessfulFRAME = false;
+bool readSuccessfulSET = false;
 int fd;
+
+unsigned char toSend[N_BYTES_FLAGS + (N_BYTES_TO_SEND * 2)]; // Buffer da mensagem a enviar
+int nBytesRead;
 
 void alarmHandler(int sigNum) {
   // Colocar aqui o código que deve ser executado
   if(numRetries < MAX_RETR) {
-    if(readSuccessful)
+    if(readSuccessfulSET) 
       return;
+    
 
     sendSupervisionTrama(fd, getCField("SET", false));
     alarm(TIMEOUT);
@@ -24,9 +29,23 @@ void alarmHandler(int sigNum) {
   }
 }
 
-void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size) {
-    unsigned char toSend[N_BYTES_FLAGS + (N_BYTES_TO_SEND * 2)]; // Buffer da mensagem a enviar
+void resendTrama(int sigNum) {
+  if(numRetries < MAX_RETR) {
+    if(readSuccessfulFRAME) 
+      return;
+    
+    printf("\nSending Trama: Retry %d\n", numRetries);
+    write(fd, toSend, N_BYTES_FLAGS + nBytesRead);
+    alarm(TIMEOUT);
+    numRetries++;
+  }
+  else {
+    printf("After %d tries to resend trama, it didn't work. Exiting program!\n", MAX_RETR);
+    exit(1);
+  }
+}
 
+void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size) {
     int i = 0;
     int j;
     int nTramasSent = 0;
@@ -38,7 +57,7 @@ void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size) {
       toSend[2] = C_I(nTrama); // C
       toSend[3] = A_C_SET ^ toSend[2]; // BCC1
       
-      int nBytesRead = 0;
+      nBytesRead = 0;
       while(nBytesRead < N_BYTES_TO_SEND && i < size) {
         // if(someRandomBytes[i] == 0x7E) { // Há mais casos -> Slide 13
         //   toSend[j] = 0x7D;
@@ -64,9 +83,11 @@ void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size) {
       printf("\nSENT TRAMA (%d)!\n", nTrama);
       int res = write(fd, toSend, N_BYTES_FLAGS + nBytesRead);
       
+      readSuccessfulFRAME = false;
       printf("\nReceiving RR / REJ\n");
-      int returnState = receiveSupervisionTrama(false, getCField("RR", !nTrama), fd); // [Nr = 0 | 1]
-      
+      int returnState = receiveSupervisionTrama(true, getCField("RR", !nTrama), fd); // [Nr = 0 | 1]
+      readSuccessfulFRAME = true;
+      numRetries = 0;
       if(returnState != 1) // Retransmissão da última trama enviada
         i -= nBytesRead;
       else
@@ -101,10 +122,12 @@ int main(int argc, char** argv)
   sendSupervisionTrama(fd, getCField("SET", false));
   
   // RECEIVE UA
-  readSuccessful = receiveSupervisionTrama(true, getCField("UA", false), fd) == 1;
+  readSuccessfulSET = receiveSupervisionTrama(true, getCField("UA", false), fd) == 1;
   
-  // Trama de Informação para o Recetor
+  (void) signal(SIGALRM, resendTrama); // Registering a new SIGALRM handler
 
+  // Trama de Informação para o Recetor
+  numRetries = 0;
   bool tNumber = false; // [Ns = 0 | 1]
 
   // Data to Send

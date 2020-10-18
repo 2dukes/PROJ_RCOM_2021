@@ -76,7 +76,7 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
 
   // returnState:
   // 1 | readSuccessful 
-  // 2 | REJ   
+  // 2/3 | REJ   
 
   int returnState = 1;
 

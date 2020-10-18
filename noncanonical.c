@@ -126,10 +126,10 @@ int main(int argc, char** argv)
         printf("Didn't receive Trama %d with success!\n", i);
         if(statusCode == 2) {
           printf("\n-- Repeated Byte --\n\nSendign RR (%d)\n", !tNumber);
-          sendSupervisionTrama(fd, getCField("RR",! tNumber));
+          sendSupervisionTrama(fd, getCField("RR",!tNumber));
         }
         else if(statusCode == -1) { // Send REJ
-          printf("\n-- Retransmit Byte --\n\nSendign REJ (%d)\n", !tNumber);
+          printf("\n-- Retransmit Byte --\n\nSendign REJ (%d)\n", tNumber);
           sendSupervisionTrama(fd, getCField("REJ", tNumber));
         }
       }

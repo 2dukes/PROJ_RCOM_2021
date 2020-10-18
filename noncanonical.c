@@ -87,62 +87,70 @@ int receiveTrama(int* nTrama, int fd) {
   return 0;
 }
 
+void llopen(int fd, struct termios* oldtio, struct termios* newtio) {
+  configureSerialPort(fd, oldtio, newtio);
+
+  // RECEIVE SET
+  receiveSupervisionTrama(false, getCField("SET", false), fd);
+  printf("\n--- RECEIVING SET ---\n");
+
+  // SEND UA 
+  sendSupervisionTrama(fd, getCField("UA", false));
+  printf("\n--- SENDING UA ---\n");
+
+}
+
 int main(int argc, char** argv)
 {
-    int fd,c, res;
-    struct termios oldtio,newtio;
+  int fd,c, res;
+  struct termios oldtio,newtio;
 
-    if ( (argc < 2) || 
-  	     ((strcmp("/dev/ttyS0", argv[1])!=0) && 
-  	      (strcmp("/dev/ttyS11", argv[1])!=0) )) {
-      printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
-      exit(1);
-    }
+  if ( (argc < 2) || 
+        ((strcmp("/dev/ttyS0", argv[1])!=0) && 
+        (strcmp("/dev/ttyS11", argv[1])!=0) )) {
+    printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
+    exit(1);
+  }
 
-    fd = configureSerialPort(argv[1], &oldtio, &newtio);
-
-    printf("New termios structure set\n");
-
-    // RECEIVE SET
-    receiveSupervisionTrama(false, getCField("SET", false), fd);
-
-    // SEND UA 
-    sendSupervisionTrama(fd, getCField("UA", false));
-
-    // Receive Trama (I)
-    printf("Starting Receive Trama (I)\n");
-    
-    int tNumber = -1; // [Nr = 0 | 1]
-    int i = 0, statusCode;
-    while(i < 2) {
-      // VALORES DE C são gerados consoante recebidos! CORRIGIR
-      statusCode = receiveTrama(&tNumber, fd);
-      if(statusCode == 0) {
-        printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
-        sendSupervisionTrama(fd, getCField("RR", !tNumber));
-        i++;
-      }
-      else {
-        printf("Didn't receive Trama %d with success!\n", i);
-        if(statusCode == 2) {
-          printf("\n-- Repeated Byte --\n\nSendign RR (%d)\n", !tNumber);
-          sendSupervisionTrama(fd, getCField("RR",!tNumber));
-        }
-        else if(statusCode == -1) { // Send REJ
-          printf("\n-- Retransmit Byte --\n\nSendign REJ (%d)\n", tNumber);
-          sendSupervisionTrama(fd, getCField("REJ", tNumber));
-        }
-      }
-    }
+  fd = open(argv[1], O_RDWR | O_NOCTTY );
+  if (fd <0) {perror(argv[1]); exit(-1); }
   
-    printf("END!\n");    
+  llopen(fd, &oldtio, &newtio);
 
-    sleep(1);
-
-    if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
-      perror("tcsetattr");
-      exit(-1);
+  // Receive Trama (I)
+  printf("Starting Receive Trama (I)\n");
+  
+  int tNumber = -1; // [Nr = 0 | 1]
+  int i = 0, statusCode;
+  while(i < 2) {
+    // VALORES DE C são gerados consoante recebidos! CORRIGIR
+    statusCode = receiveTrama(&tNumber, fd);
+    if(statusCode == 0) {
+      printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
+      sendSupervisionTrama(fd, getCField("RR", !tNumber));
+      i++;
     }
-    close(fd);
-    return 0;
+    else {
+      printf("Didn't receive Trama %d with success!\n", i);
+      if(statusCode == 2) {
+        printf("\n-- Repeated Byte --\n\nSendign RR (%d)\n", !tNumber);
+        sendSupervisionTrama(fd, getCField("RR",!tNumber));
+      }
+      else if(statusCode == -1) { // Send REJ
+        printf("\n-- Retransmit Byte --\n\nSendign REJ (%d)\n", tNumber);
+        sendSupervisionTrama(fd, getCField("REJ", tNumber));
+      }
+    }
+  }
+
+  printf("END!\n");    
+
+  sleep(1);
+
+  if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
+    perror("tcsetattr");
+    exit(-1);
+  }
+  close(fd);
+  return 0;
 }

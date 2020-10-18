@@ -20,7 +20,7 @@ unsigned char computeBcc2(unsigned char data[BUF_MAX_SIZE], int nBytes, int star
       Open serial port device for reading and writing and not as controlling tty
       because we don't want to get killed if linenoise sends CTRL-C.
 */
-int configureSerialPort(char argv1[50], struct termios* oldtio, struct termios* newtio);
+void configureSerialPort(int fd, struct termios* oldtio, struct termios* newtio);
 
 int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd);
 

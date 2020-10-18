@@ -18,7 +18,7 @@ void alarmHandler(int sigNum) {
     if(readSuccessfulSET) 
       return;
     
-
+    printf("\n--- Sending SET: Retry %d ---\n", numRetries);
     sendSupervisionTrama(fd, getCField("SET", false));
     alarm(TIMEOUT);
     numRetries++;
@@ -43,6 +43,19 @@ void resendTrama(int sigNum) {
     printf("After %d tries to resend trama, it didn't work. Exiting program!\n", MAX_RETR);
     exit(1);
   }
+}
+
+void llopen(struct termios* oldtio, struct termios* newtio) {
+  configureSerialPort(fd, oldtio, newtio);
+
+  // SEND SET
+  printf("\n--- Sending SET ---\n");
+  sendSupervisionTrama(fd, getCField("SET", false));
+  
+  // RECEIVE UA
+  readSuccessfulSET = receiveSupervisionTrama(true, getCField("UA", false), fd) == 1;
+  printf("\n--- RECEIVED UA ---\n");
+
 }
 
 void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size) {
@@ -97,7 +110,7 @@ void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size) {
     }
 }
 
-    
+ 
 
 int main(int argc, char** argv)
 {
@@ -114,15 +127,10 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  fd = configureSerialPort(argv[1], &oldtio, &newtio);
+  fd = open(argv[1], O_RDWR | O_NOCTTY );
+  if (fd <0) {perror(argv[1]); exit(-1); }
 
-  printf("New termios structure set\n");
-
-  // SEND SET
-  sendSupervisionTrama(fd, getCField("SET", false));
-  
-  // RECEIVE UA
-  readSuccessfulSET = receiveSupervisionTrama(true, getCField("UA", false), fd) == 1;
+  llopen(&oldtio, &newtio);
   
   (void) signal(SIGALRM, resendTrama); // Registering a new SIGALRM handler
 

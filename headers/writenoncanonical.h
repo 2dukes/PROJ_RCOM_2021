@@ -16,4 +16,6 @@
 
 void alarmHandler(int sigNum);
 
+void resendTrama(int sigNum);
+
 void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size);

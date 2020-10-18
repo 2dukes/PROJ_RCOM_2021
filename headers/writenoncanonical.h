@@ -18,4 +18,6 @@ void alarmHandler(int sigNum);
 
 void resendTrama(int sigNum);
 
-void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size);
+void llopen(struct termios* oldtio, struct termios* newtio);
+
+void llwrite(unsigned char buf[BUF_MAX_SIZE], int size);

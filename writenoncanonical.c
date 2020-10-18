@@ -5,6 +5,7 @@
 volatile int STOP=FALSE;
 
 int numRetries = 0;
+
 bool readSuccessfulFRAME = false;
 bool readSuccessfulSET = false;
 int fd;
@@ -58,10 +59,12 @@ void llopen(struct termios* oldtio, struct termios* newtio) {
 
 }
 
-void sendData(bool nTrama, unsigned char buf[BUF_MAX_SIZE], int size) {
+void llwrite(unsigned char buf[BUF_MAX_SIZE], int size) {
     int i = 0;
     int j;
     int nTramasSent = 0;
+    bool nTrama = false; // [Ns = 0 | 1]
+
     while(i < size) {
       j = 4;
     
@@ -136,7 +139,6 @@ int main(int argc, char** argv)
 
   // Trama de Informação para o Recetor
   numRetries = 0;
-  bool tNumber = false; // [Ns = 0 | 1]
 
   // Data to Send
   unsigned char someRandomBytes[BUF_MAX_SIZE];
@@ -152,7 +154,7 @@ int main(int argc, char** argv)
   someRandomBytes[9] = 0X0E;
   
   // printf("Tamanho do buffer: %d\n", sizeof(someRandomBytes));
-  sendData(tNumber, someRandomBytes, 10);
+  llwrite(someRandomBytes, 10);
 
   printf("\nEND!\n");
 

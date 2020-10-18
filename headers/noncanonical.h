@@ -13,4 +13,6 @@
 #include "macros.h"
 #include "generalFunctions.h"
 
-int receiveTrama(int* nTrama, int fd);
+int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage);
+
+void llread(int fd, int numPackets);

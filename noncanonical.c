@@ -4,7 +4,7 @@
 
 volatile int STOP=FALSE;
 
-int receiveTrama(int* nTrama, int fd) {
+int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage) {
   unsigned char buf;
   char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC1_OK", "STOP" };
   int i = 0, res;
@@ -60,7 +60,6 @@ int receiveTrama(int* nTrama, int fd) {
         break;  
 
       default: 
-        // printf("W: %p | %p | %p | %d\n", buf, A_C_SET ^ cField, cField, buf == cField);
         if(strcmp(state[i], "BCC1_OK") == 0) 
           dataBytes[index++] = buf;
         else // Other_RCV
@@ -68,7 +67,6 @@ int receiveTrama(int* nTrama, int fd) {
     }
   } 
 
-  // printf("%p | %p | %p | %p | %p | %d\n", dataBytes[0], dataBytes[1], dataBytes[2], dataBytes[3], dataBytes[4], index - 1);
   if(cFlag == *nTrama) // repeatedByte
     repeatedByte = true;
 
@@ -100,6 +98,34 @@ void llopen(int fd, struct termios* oldtio, struct termios* newtio) {
 
 }
 
+void llread(int fd, int numPackets) {
+  int i = 0, statusCode;
+  int tNumber = -1; // [Nr = 0 | 1]
+
+  unsigned char messageRead[N_BYTES_TO_SEND * 2]; // Temporary Buffer
+
+  while(i < numPackets) {
+    // VALORES DE C são gerados consoante recebidos! CORRIGIR
+    statusCode = receiveTrama(&tNumber, fd, messageRead);
+    if(statusCode == 0) {
+      printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
+      sendSupervisionTrama(fd, getCField("RR", !tNumber));
+      i++;
+    }
+    else {
+      printf("Didn't receive Trama %d with success!\n", i);
+      if(statusCode == 2) {
+        printf("\n-- Repeated Byte --\n\nSendign RR (%d)\n", !tNumber);
+        sendSupervisionTrama(fd, getCField("RR",!tNumber));
+      }
+      else if(statusCode == -1) { // Send REJ
+        printf("\n-- Retransmit Byte --\n\nSendign REJ (%d)\n", tNumber);
+        sendSupervisionTrama(fd, getCField("REJ", tNumber));
+      }
+    }
+  }
+}
+
 int main(int argc, char** argv)
 {
   int fd,c, res;
@@ -120,28 +146,8 @@ int main(int argc, char** argv)
   // Receive Trama (I)
   printf("Starting Receive Trama (I)\n");
   
-  int tNumber = -1; // [Nr = 0 | 1]
-  int i = 0, statusCode;
-  while(i < 2) {
-    // VALORES DE C são gerados consoante recebidos! CORRIGIR
-    statusCode = receiveTrama(&tNumber, fd);
-    if(statusCode == 0) {
-      printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
-      sendSupervisionTrama(fd, getCField("RR", !tNumber));
-      i++;
-    }
-    else {
-      printf("Didn't receive Trama %d with success!\n", i);
-      if(statusCode == 2) {
-        printf("\n-- Repeated Byte --\n\nSendign RR (%d)\n", !tNumber);
-        sendSupervisionTrama(fd, getCField("RR",!tNumber));
-      }
-      else if(statusCode == -1) { // Send REJ
-        printf("\n-- Retransmit Byte --\n\nSendign REJ (%d)\n", tNumber);
-        sendSupervisionTrama(fd, getCField("REJ", tNumber));
-      }
-    }
-  }
+  int numPackets = 2; // Will be calculated in the future.
+  llread(fd, numPackets);
 
   printf("END!\n");    
 

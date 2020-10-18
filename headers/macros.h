@@ -22,3 +22,7 @@
 #define C_UA 0x07
 #define C_RR( n )  ( (n) ? 0x85 : 0x05 )
 #define C_REJ( n ) ( (n) ? 0x81 : 0x01 )
+
+#define ESC 0x7D
+#define ESC_XOR1 0X5E
+#define ESC_XOR2 0x5D

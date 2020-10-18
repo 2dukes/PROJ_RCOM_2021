@@ -59,6 +59,40 @@ void llopen(struct termios* oldtio, struct termios* newtio) {
 
 }
 
+int byteStuffing(unsigned char* dataToSend, int size) {
+  int pos = 0, startingPos = 4;
+  int index = 0, bytesTransformed = 0;
+
+  unsigned char auxToSend[N_BYTES_TO_SEND * 2];
+
+  while(index < size) {
+    if(dataToSend[startingPos] == FLAG_SET) { // Há mais casos -> Slide 13
+      auxToSend[pos++] = ESC;
+      auxToSend[pos] = ESC_XOR1; 
+      bytesTransformed ++;
+    }
+    else if (dataToSend[startingPos] == ESC) {
+      auxToSend[pos++] = ESC;
+      auxToSend[pos] = ESC_XOR2; 
+      bytesTransformed ++;
+    }
+    else 
+      auxToSend[pos] = dataToSend[startingPos];
+    
+    bytesTransformed++;
+    pos++;
+    startingPos++;
+    index++;
+  }
+
+  for(int i = 0; i < bytesTransformed; i++)  
+    printf("auxtoSend[%d] = %p\n", i, auxToSend[i]);
+
+  // Copy "stuffed" array into toSend
+  memcpy(&toSend[4], auxToSend, bytesTransformed);
+  return 4 + bytesTransformed;
+}
+
 void llwrite(unsigned char buf[BUF_MAX_SIZE], int size) {
     int i = 0;
     int j;
@@ -75,17 +109,6 @@ void llwrite(unsigned char buf[BUF_MAX_SIZE], int size) {
       
       nBytesRead = 0;
       while(nBytesRead < N_BYTES_TO_SEND && i < size) {
-        // if(someRandomBytes[i] == 0x7E) { // Há mais casos -> Slide 13
-        //   toSend[j] = 0x7D;
-        //   toSend[j + 1] = 0x5E; 
-        //   j++;
-        // }
-        // else if (someRandomBytes[i] == 0x7D) {
-        //   toSend[j] = 0x7D;
-        //   toSend[j + 1] = 0x5D; 
-        //   j++;
-        // }
-        // else
         toSend[j] = buf[i];
         
         nBytesRead++;
@@ -93,8 +116,9 @@ void llwrite(unsigned char buf[BUF_MAX_SIZE], int size) {
         j++;
       }   
 
-      toSend[j] = computeBcc2(buf, nBytesRead, nTramasSent * N_BYTES_TO_SEND);
-      toSend[j + 1] = FLAG_SET;
+      toSend[j] = computeBcc2(buf, nBytesRead, nTramasSent * N_BYTES_TO_SEND);      
+      int finalIndex = byteStuffing(toSend, nBytesRead + 1); // +1 because of BCC2    
+      toSend[finalIndex] = FLAG_SET;
 
       printf("\nSENT TRAMA (%d)!\n", nTrama);
       int res = write(fd, toSend, N_BYTES_FLAGS + nBytesRead);

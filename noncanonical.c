@@ -6,7 +6,7 @@ volatile int STOP=FALSE;
 
 int deStuffing(unsigned char * message, int size) {
   int currentMessageSize = 0;
-  unsigned char* dataBytes;
+  unsigned char* dataBytes = (unsigned char *) malloc(0);
 
   for(int i = 0; i < size; i++) {
     dataBytes = (unsigned char*) realloc(dataBytes, currentMessageSize + 1);
@@ -34,6 +34,8 @@ int deStuffing(unsigned char * message, int size) {
   memset(message, 0, size); // Clear array
   memcpy(message, dataBytes, currentMessageSize); // Substitute original array with destuffed content
 
+  free(dataBytes);
+  
   return currentMessageSize;
 }
 

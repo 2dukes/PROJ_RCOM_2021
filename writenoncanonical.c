@@ -85,8 +85,8 @@ int byteStuffing(unsigned char* dataToSend, int size) {
     index++;
   }
 
-  for(int i = 0; i < bytesTransformed; i++)  
-    printf("auxtoSend[%d] = %p\n", i, auxToSend[i]);
+  // for(int i = 0; i < bytesTransformed; i++)  
+  //   printf("auxtoSend[%d] = %p\n", i, auxToSend[i]);
 
   // Copy "stuffed" array into toSend
   memcpy(&toSend[4], auxToSend, bytesTransformed);
@@ -121,17 +121,18 @@ void llwrite(unsigned char buf[BUF_MAX_SIZE], int size) {
       toSend[finalIndex] = FLAG_SET;
 
       printf("\nSENT TRAMA (%d)!\n", nTrama);
-      int res = write(fd, toSend, N_BYTES_FLAGS + nBytesRead);
+      int res = write(fd, toSend, finalIndex + 1);
       
       readSuccessfulFRAME = false;
       printf("\nReceiving RR / REJ\n");
       int returnState = receiveSupervisionTrama(true, getCField("RR", !nTrama), fd); // [Nr = 0 | 1]
       readSuccessfulFRAME = true;
       numRetries = 0;
-      if(returnState != 1) // Retransmissão da última trama enviada
-        i -= nBytesRead;
-      else
+
+      if(returnState == 1)
         nTramasSent++;
+      else if(returnState == 2) // Retransmissão da última trama enviada
+        i -= nBytesRead;
 
       nTrama = !nTrama;   
     }
@@ -166,7 +167,7 @@ int main(int argc, char** argv)
 
   // Data to Send
   unsigned char someRandomBytes[BUF_MAX_SIZE];
-  someRandomBytes[0] = 0x0A;
+  someRandomBytes[0] = 0x7D;
   someRandomBytes[1] = 0xFB;
   someRandomBytes[2] = 0xCC;
   someRandomBytes[3] = 0xED;

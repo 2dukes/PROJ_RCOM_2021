@@ -4,6 +4,39 @@
 
 volatile int STOP=FALSE;
 
+int deStuffing(unsigned char * message, int size) {
+  int currentMessageSize = 0;
+  unsigned char* dataBytes;
+
+  for(int i = 0; i < size; i++) {
+    dataBytes = (unsigned char*) realloc(dataBytes, currentMessageSize + 1);
+
+    // printf("message[%d] = %p\n", i, message[i]);
+    if(message[i] == ESC) {
+      if(i + 1 < size) {
+        if(message[i+1] == ESC_XOR1) {
+          dataBytes[currentMessageSize++] = FLAG_SET;
+          i++;
+        } else if(message[i+1] == ESC_XOR2) {
+          dataBytes[currentMessageSize++] = ESC;
+          i++;
+        }
+      } else {
+        printf("\n--- String Malformed (Incorrect Stuffing)! ---\n");
+        return -1;
+      }
+    } else 
+      dataBytes[currentMessageSize++] = message[i];
+    
+    // printf("dataBytes[%d] = %p\n", currentMessageSize - 1, dataBytes[currentMessageSize - 1]);
+  }
+
+  memset(message, 0, size); // Clear array
+  memcpy(message, dataBytes, currentMessageSize); // Substitute original array with destuffed content
+
+  return currentMessageSize;
+}
+
 int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage) {
   unsigned char buf;
   char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC1_OK", "STOP" };
@@ -41,7 +74,7 @@ int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage) {
         continue;
       }
     }
-  
+
     switch (buf)
     {
       case FLAG_SET:
@@ -72,9 +105,14 @@ int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage) {
 
   *nTrama = cFlag;
 
+  // Destuffing - Including BCC2
+  int currentMessageSize = deStuffing(dataBytes, index);
+  if(currentMessageSize == -1)
+    return -1; // PEDIR RETRANSMISSÃO (REJ)
+  
   // At this point dataBytes[index - 1] holds BCC2
-  unsigned char bcc2 = computeBcc2(dataBytes, index - 1, 0);
-  if(bcc2 != dataBytes[index - 1]) {
+  unsigned char bcc2 = computeBcc2(dataBytes, currentMessageSize - 1, 0); // Excluding BCC2
+  if(bcc2 != dataBytes[currentMessageSize - 1]) {
     if(repeatedByte) 
       return 2; // Status Code for Repeated Byte -> Descartar campo de dados
     else

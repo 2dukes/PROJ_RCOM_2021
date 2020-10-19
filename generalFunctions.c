@@ -71,7 +71,7 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
 
   // returnState:
   // 1 | readSuccessful 
-  // 2/3 | REJ   
+  // 2 | REJ
 
   int returnState = 1;
 
@@ -87,24 +87,24 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
     printf("%p\n", byte);
     
     if(byte == (A_C_SET ^ cField)) { // BCC1
-        if(strcmp(state[i], "C_RCV") == 0) {
-            i++;
-            continue;
-        }
+      if(strcmp(state[i], "C_RCV") == 0) {
+          i++;
+          continue;
+      }
     }
     else if(byte == cField || byte == C_REJ(0) || byte == C_REJ(1)) { // C
-        if(strcmp(state[i], "A_RCV") == 0) {
-            if(byte == C_REJ(0)) {
-              returnState = 2;
-              cField = C_REJ(0);
-            }  
-            else if(byte == C_REJ(1)) {
-              returnState = 3;
-              cField = C_REJ(1);
-            }
-            i++;
-            continue;
+      if(strcmp(state[i], "A_RCV") == 0) {
+        if(byte == C_REJ(0)) {
+          returnState = 2;
+          cField = C_REJ(0);
+        }  
+        else if(byte == C_REJ(1)) {
+          returnState = 2;
+          cField = C_REJ(1);
         }
+        i++;
+        continue;
+      }
     }
 
     switch (byte)

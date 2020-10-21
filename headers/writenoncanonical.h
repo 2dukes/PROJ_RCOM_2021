@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 
 #include "macros.h"
 #include "generalFunctions.h"

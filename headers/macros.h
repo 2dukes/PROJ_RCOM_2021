@@ -26,3 +26,11 @@
 #define ESC 0x7D
 #define ESC_XOR1 0X5E
 #define ESC_XOR2 0x5D
+
+#define C_DATA 0x01
+#define C_START 0x02
+#define C_END 0x03
+#define T1 0x00
+#define T2 0x01
+#define L1 0x02 // Fixed for pinguim.gif -> 10968 -> 2 OCTETOS
+#define L2 0x01 // pinguim.gif -> 11 chars -> 1 OCTETO

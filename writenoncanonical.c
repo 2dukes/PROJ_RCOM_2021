@@ -129,16 +129,59 @@ void llwrite(unsigned char buf[BUF_MAX_SIZE], int size) {
       readSuccessfulFRAME = true;
       numRetries = 0;
 
-      if(returnState == 1)
+      if(returnState == 1) {
         nTramasSent++;
+        nTrama = !nTrama;   
+      }
       else if(returnState == 2) // Retransmissão da última trama enviada
         i -= nBytesRead;
-
-      nTrama = !nTrama;   
     }
 }
 
- 
+unsigned char* openReadFile(char* fileName, off_t* fileSize) {
+  FILE* f;
+  struct stat metadata;
+  unsigned char* fileData;
+
+  if((f = fopen(fileName, "rb")) == NULL) {
+    perror("Error opening file!");
+    exit(-1);
+  }
+  // off_t st_size
+  stat(fileName, &metadata);
+  *fileSize = metadata.st_size;
+  printf("File %s has %ld bytes!\n", fileName, *fileSize);
+
+  fileData = (unsigned char *) malloc(*fileSize); // fileData will hold the file bytes -> DON'T FORGET TO FREE MEMORY AT THE END!
+  fread(fileData, sizeof(unsigned char), *fileSize, f);
+  
+  // for(int i = 0; i < *fileSize; i++) 
+  //   printf("Byte[%d] = %p", i, fileData[i]);
+
+  return fileData;
+}
+
+unsigned char* buildControlTrama(char* fileName, off_t* fileSize, unsigned char controlField) {
+  int fileNameSize = strlen(fileName); // Size in bytes (chars)
+  int sizeControlPackage = 5 * sizeof(unsigned char) + L1 * sizeof(unsigned char) + fileNameSize * sizeof(unsigned char);
+  printf("SizeControlPackege = %d\n", sizeControlPackage);
+  
+  unsigned char* package = (unsigned char*) malloc(sizeControlPackage); // FREE MEMORY AT THE END
+  package[0] = controlField;
+  package[1] = T1;
+  package[2] = L1;
+  package[3] = ((*fileSize) >> 24) & 0xFF;
+  package[4] = ((*fileSize) >> 16) & 0xFF;
+  package[5] = ((*fileSize) >> 8) & 0xFF;
+  package[6] = ((*fileSize)) & 0xFF;
+  package[7] = T2;
+  package[8] = fileNameSize;
+  
+  for(int i = 0; i < fileNameSize; i++) 
+    package[9 + i] = fileName[i];
+  
+  return package;
+}
 
 int main(int argc, char** argv)
 {
@@ -148,19 +191,28 @@ int main(int argc, char** argv)
   struct termios oldtio,newtio;
   int i, sum = 0, speed = 0;
   
-  if ( (argc < 2) || 
+  if ( (argc < 3) || 
         ((strcmp("/dev/ttyS10", argv[1])!=0) && 
-        (strcmp("/dev/ttyS1", argv[1])!=0) )) {
-    printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
+        (strcmp("/dev/ttyS0", argv[1])!=0) )) {
+    printf("Usage:\tnserial SerialPort filename\n\tex: nserial /dev/ttyS1 pinguim.gif\n");
     exit(1);
   }
 
   fd = open(argv[1], O_RDWR | O_NOCTTY );
   if (fd <0) {perror(argv[1]); exit(-1); }
 
+  off_t fileSize;
+  printf("Size: %d\n", sizeof(off_t));
+  unsigned char *msg = openReadFile(argv[2], &fileSize);
+
   llopen(&oldtio, &newtio);
   
   (void) signal(SIGALRM, resendTrama); // Registering a new SIGALRM handler
+
+  // Trama START
+  unsigned char* startPackage = buildControlTrama(argv[2], &fileSize, C_START);
+
+  // Enviar START
 
   // Trama de Informação para o Recetor
   numRetries = 0;

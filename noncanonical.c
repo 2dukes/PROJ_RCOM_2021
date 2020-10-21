@@ -25,7 +25,10 @@ int deStuffing(unsigned char * message, int size) {
         printf("\n--- String Malformed (Incorrect Stuffing)! ---\n");
         return -1;
       }
-    } else 
+    } else if(message[i] == FLAG_SET){
+      printf("\n--- String Malformed (Incorrect Stuffing)! ---\n");
+      return -1;
+    } else
       dataBytes[currentMessageSize++] = message[i];
     
     // printf("dataBytes[%d] = %p\n", currentMessageSize - 1, dataBytes[currentMessageSize - 1]);
@@ -105,7 +108,6 @@ int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage) {
   if(cFlag == *nTrama) // repeatedByte
     repeatedByte = true;
 
-  *nTrama = cFlag;
 
   // Destuffing - Including BCC2
   int currentMessageSize = deStuffing(dataBytes, index);
@@ -115,11 +117,14 @@ int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage) {
   // At this point dataBytes[index - 1] holds BCC2
   unsigned char bcc2 = computeBcc2(dataBytes, currentMessageSize - 1, 0); // Excluding BCC2
   if(bcc2 != dataBytes[currentMessageSize - 1]) {
-    if(repeatedByte) 
+    if(repeatedByte) {
+      *nTrama = cFlag;
       return 2; // Status Code for Repeated Byte -> Descartar campo de dados
-    else
+    }
+    else 
       return -1; // Status Code Error -> PEDIR RETRANSMISSÃO (REJ)
   }
+  *nTrama = cFlag;
   if(repeatedByte) 
     return 2; // Status Code for Repeated Byte -> Descartar campo de dados
   return 0;
@@ -182,6 +187,9 @@ int main(int argc, char** argv)
   if (fd <0) {perror(argv[1]); exit(-1); }
   
   llopen(fd, &oldtio, &newtio);
+
+  // Receive start Trama -> Capture fileName and fileTotalSize
+
 
   // Receive Trama (I)
   printf("Starting Receive Trama (I)\n");

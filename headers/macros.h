@@ -12,7 +12,7 @@
 #define TRUE 1
 
 #define N_BYTES_FLAGS 6 // Número de bytes pertencentes a FLAGS na Trama de Informação
-#define N_BYTES_TO_SEND 5
+#define N_BYTES_TO_SEND 128
 
 #define MAX_RETR 3
 #define TIMEOUT 3
@@ -32,5 +32,5 @@
 #define C_END 0x03
 #define T1 0x00
 #define T2 0x01
-#define L1 0x02 // Fixed for pinguim.gif -> 10968 -> 2 OCTETOS
-#define L2 0x01 // pinguim.gif -> 11 chars -> 1 OCTETO
+#define L1 0x04 // Fixed for pinguim.gif -> 10968 -> 2 OCTETOS
+// #define L2 0x0B // pinguim.gif -> 11 chars -> 11 OCTETOS

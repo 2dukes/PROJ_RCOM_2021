@@ -161,10 +161,10 @@ unsigned char* openReadFile(char* fileName, off_t* fileSize) {
   return fileData;
 }
 
-unsigned char* buildControlTrama(char* fileName, off_t* fileSize, unsigned char controlField) {
+unsigned char* buildControlTrama(char* fileName, off_t* fileSize, unsigned char controlField, off_t* packageSize) {
   int fileNameSize = strlen(fileName); // Size in bytes (chars)
   int sizeControlPackage = 5 * sizeof(unsigned char) + L1 * sizeof(unsigned char) + fileNameSize * sizeof(unsigned char);
-  printf("SizeControlPackege = %d\n", sizeControlPackage);
+  // printf("SizeControlPackage = %d\n", sizeControlPackage);
   
   unsigned char* package = (unsigned char*) malloc(sizeControlPackage); // FREE MEMORY AT THE END
   package[0] = controlField;
@@ -180,6 +180,8 @@ unsigned char* buildControlTrama(char* fileName, off_t* fileSize, unsigned char 
   for(int i = 0; i < fileNameSize; i++) 
     package[9 + i] = fileName[i];
   
+  *packageSize = 9 + fileNameSize;
+
   return package;
 }
 
@@ -202,22 +204,23 @@ int main(int argc, char** argv)
   if (fd <0) {perror(argv[1]); exit(-1); }
 
   off_t fileSize;
-  printf("Size: %d\n", sizeof(off_t));
   unsigned char *msg = openReadFile(argv[2], &fileSize);
 
   llopen(&oldtio, &newtio);
   
   (void) signal(SIGALRM, resendTrama); // Registering a new SIGALRM handler
 
-  // Trama START
-  unsigned char* startPackage = buildControlTrama(argv[2], &fileSize, C_START);
+  // START -> Construct
+  off_t packageSize = 0;
+  unsigned char* startPackage = buildControlTrama(argv[2], &fileSize, C_START, &packageSize);
+  printf("START Frame size: %ld\n", packageSize);
 
-  // Enviar START
+  // START -> Send
+  llwrite(startPackage, packageSize);
 
-  // Trama de Informação para o Recetor
   numRetries = 0;
 
-  // Data to Send
+  // Trama de Informação para o Recetor
   unsigned char someRandomBytes[BUF_MAX_SIZE];
   someRandomBytes[0] = 0x7D;
   someRandomBytes[1] = 0xFB;

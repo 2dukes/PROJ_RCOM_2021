@@ -155,8 +155,8 @@ unsigned char* openReadFile(char* fileName, off_t* fileSize) {
   fileData = (unsigned char *) malloc(*fileSize); // fileData will hold the file bytes -> DON'T FORGET TO FREE MEMORY AT THE END!
   fread(fileData, sizeof(unsigned char), *fileSize, f);
   
-  for(int i = 0; i < *fileSize; i++) 
-    printf("Byte[%d] = %p", i, fileData[i]);
+  // for(int i = 0; i < *fileSize; i++) 
+  //   printf("Byte[%d] = %p", i, fileData[i]);
 
   return fileData;
 }
@@ -243,13 +243,13 @@ int main(int argc, char** argv)
   (void) signal(SIGALRM, resendTrama); // Registering a new SIGALRM handler
 
   // START -> Construct
-  off_t packageSize = 0;
-  unsigned char* startPackage = buildControlTrama(argv[2], &fileSize, C_START, &packageSize);
-  printf("START Frame size: %ld\n", packageSize);
+  off_t startPackageSize = 0;
+  unsigned char* startPackage = buildControlTrama(argv[2], &fileSize, C_START, &startPackageSize);
+  printf("\nSTART Frame size: %ld\n", startPackageSize);
 
   // START -> Send
   printf("\n-- SENT START --\n");
-  llwrite(startPackage, packageSize);
+  llwrite(startPackage, startPackageSize);
 
   numRetries = 0;
 
@@ -258,11 +258,11 @@ int main(int argc, char** argv)
   int numPackets;
   totalMessage = encapsulateMessage(msg, &fileSize, &totalMessageSize, &numPackets);
 
-
   // Trama de Informação para o Recetor
   
   printf("numPackets to Send: %d - \n", numPackets);
   llwrite(totalMessage, totalMessageSize);
+  free(totalMessage);
 
   // unsigned char someRandomBytes[BUF_MAX_SIZE];
   // someRandomBytes[0] = 0x7D;
@@ -277,6 +277,14 @@ int main(int argc, char** argv)
   // someRandomBytes[9] = 0X0E;
   // llwrite(someRandomBytes, 10);
 
+  // END -> Construct
+  off_t endPackageSize = 0;
+  unsigned char* endPackage = buildControlTrama(argv[2], &fileSize, C_END, &endPackageSize);
+  printf("\nEND Frame size: %ld\n", endPackageSize);
+
+  // END -> Send
+  printf("\n-- SENT END --\n");
+  llwrite(endPackage, endPackageSize);
 
   printf("\nEND!\n");
 

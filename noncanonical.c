@@ -4,6 +4,9 @@
 
 volatile int STOP=FALSE;
 
+unsigned char* startMessage;
+off_t startMessageSize;
+
 int deStuffing(unsigned char * message, int size, unsigned char* receiveMessage, off_t* receiveMessageSize) {
   int currentMessageSize = 0;
   unsigned char dataBytes[N_BYTES_TO_SEND + 1];
@@ -166,6 +169,26 @@ void saveMessage(unsigned char* messageRead, off_t* messageReadSize, unsigned ch
   }
 }
 
+bool checkEnd(unsigned char* endMessage, off_t endMessageSize) {
+  int s = 1;
+  int e = 1;
+  if (startMessageSize != endMessageSize)
+    return FALSE;
+  else {
+    if (endMessage[0] == C_END) {
+      for (; s < startMessageSize; s++, e++)
+      {
+        if (startMessage[s] != endMessage[e])
+          return FALSE;
+      }
+      return TRUE;
+    }
+    else
+      return FALSE;
+  }
+  return true;
+}
+
 off_t llread(int fd, int numPackets, unsigned char* messageRead) {
   int i = 0, statusCode;
   int tNumber = -1; // [Nr = 0 | 1]
@@ -181,7 +204,10 @@ off_t llread(int fd, int numPackets, unsigned char* messageRead) {
     statusCode = receiveTrama(&tNumber, fd, currentMessage, &currentMessageSize);
     if(statusCode == 0) {
       printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
-      saveMessage(messageRead, &messageReadSize, currentMessage, currentMessageSize);
+      if(!checkEnd(messageRead, messageReadSize))
+        saveMessage(messageRead, &messageReadSize, currentMessage, currentMessageSize);
+      else 
+        printf("-- RECEIVED END --\n");
       sendSupervisionTrama(fd, getCField("RR", !tNumber));
       i++;
     }
@@ -237,8 +263,8 @@ int main(int argc, char** argv)
   llopen(fd, &oldtio, &newtio);
 
   // Receive start Trama -> Capture fileName and fileTotalSize
-  unsigned char* startMessage = (unsigned char*) malloc(0);
-  off_t messageReadSize = llread(fd, 1, startMessage); // Only 1 Frame
+  startMessage = (unsigned char*) malloc(0);
+  startMessageSize = llread(fd, 1, startMessage); // Only 1 Frame
   printf("\n-- RECEIVED START --\n");
 
   // Parse it's info
@@ -247,8 +273,6 @@ int main(int argc, char** argv)
 
   printf("-- File Size: %ld --\n", dataSize);
   printf("-- File Name: %s --\n", fileName);
-
-  free(startMessage);
 
   // Receive Trama (I)
   // printf("Starting Receive Trama (I)\n");
@@ -268,7 +292,16 @@ int main(int argc, char** argv)
   int numPackets = 89; // Will be calculated in the future.
   unsigned char* totalMessage = (unsigned char*) malloc(sizeToAllocate);
   llread(fd, numPackets, totalMessage);
+  // printf("%ld\n", sizeToAllocate);
 
+  numPackets = 1;
+  llread(fd, numPackets, totalMessage);
+
+  printf("\n-- RECEIVED END --\n");
+
+  free(startMessage);
+  free(totalMessage);
+  
   printf("END!\n");    
   
   sleep(1);

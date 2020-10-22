@@ -204,12 +204,10 @@ off_t llread(int fd, int numPackets, unsigned char* messageRead) {
     statusCode = receiveTrama(&tNumber, fd, currentMessage, &currentMessageSize);
     if(statusCode == 0) {
       printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
-      if(!checkEnd(currentMessage, currentMessageSize)) {
+      if(!checkEnd(currentMessage, currentMessageSize)) 
         saveMessage(messageRead, &messageReadSize, currentMessage, currentMessageSize);
-        printf("ASDASDASDASD\n");
-      }
       else 
-        printf("-- RECEIVED END --\n");
+        printf("\n-- RECEIVED END --\n");
       sendSupervisionTrama(fd, getCField("RR", !tNumber));
       i++;
     }
@@ -288,7 +286,6 @@ int main(int argc, char** argv)
   // Receive Trama (I)
   // printf("Starting Receive Trama (I)\n");
   
-
   int completePackets = (dataSize) / (N_BYTES_TO_SEND - DATA_HEADER_LEN);
   float remain = (float) dataSize / (N_BYTES_TO_SEND - DATA_HEADER_LEN) - completePackets;
   int lastBytes = remain * (N_BYTES_TO_SEND - DATA_HEADER_LEN);
@@ -299,20 +296,28 @@ int main(int argc, char** argv)
   // printf("LastBytes: %d\n", lastBytes);
   // printf("sizeToAllocate: %ld\n", sizeToAllocate);
   
-  // 11324
-  int numPackets = 89; // Will be calculated in the future.
+  // 11324 -> 128
+  int numPackets = completePackets; // Will be calculated in the future.
+  if(remain > 0) 
+    numPackets = completePackets + 1;
+  
   unsigned char* totalMessage = (unsigned char*) malloc(sizeToAllocate);
   llread(fd, numPackets, totalMessage);
   // printf("%ld\n", sizeToAllocate);
 
   printf("- SEPARATOR -\n");
 
-  unsigned char* endMessage = (unsigned char*) malloc(startMessageSize);
   numPackets = 1;
-  llread(fd, numPackets, endMessage);
+  llread(fd, numPackets, NULL);
 
-  // for(int i = 0; i < N_BYTES_TO_SEND; i++) 
-  //   printf("- %p -\n", totalMessage[i]);
+  for(int i = 0; i < N_BYTES_TO_SEND; i++) 
+    printf("- %p -\n", totalMessage[i]);
+
+  // unsigned char* byteData[dataSize];
+  // for(off_t i = 0; i < sizeToAllocate; i++) {
+  //   byteData
+  // }
+  
   // createFile();
 
   free(startMessage);

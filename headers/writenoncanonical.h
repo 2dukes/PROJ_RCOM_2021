@@ -21,4 +21,4 @@ void resendTrama(int sigNum);
 
 void llopen(struct termios* oldtio, struct termios* newtio);
 
-void llwrite(unsigned char buf[BUF_MAX_SIZE], int size);
+void llwrite(unsigned char* buf, off_t size);

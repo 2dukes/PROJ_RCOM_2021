@@ -93,7 +93,7 @@ int byteStuffing(unsigned char* dataToSend, int size) {
   return 4 + bytesTransformed;
 }
 
-void llwrite(unsigned char buf[BUF_MAX_SIZE], int size) {
+void llwrite(unsigned char *buf, off_t size) {
     int i = 0;
     int j;
     int nTramasSent = 0;
@@ -155,8 +155,8 @@ unsigned char* openReadFile(char* fileName, off_t* fileSize) {
   fileData = (unsigned char *) malloc(*fileSize); // fileData will hold the file bytes -> DON'T FORGET TO FREE MEMORY AT THE END!
   fread(fileData, sizeof(unsigned char), *fileSize, f);
   
-  // for(int i = 0; i < *fileSize; i++) 
-  //   printf("Byte[%d] = %p", i, fileData[i]);
+  for(int i = 0; i < *fileSize; i++) 
+    printf("Byte[%d] = %p", i, fileData[i]);
 
   return fileData;
 }
@@ -183,6 +183,38 @@ unsigned char* buildControlTrama(char* fileName, off_t* fileSize, unsigned char 
   *packageSize = 9 + fileNameSize;
 
   return package;
+}
+
+unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSize, off_t* totalMessageSize, int* numPackets) {
+  unsigned char* totalMessage = (unsigned char*) malloc(0);
+  
+  int16_t aux;
+  off_t auxBytesToSend = 0;
+  int8_t sequenceNum = 0;
+
+  for(off_t i = 0; i < *messageSize; i++) {
+    if(i == auxBytesToSend) { // Each packet has 128 bytes of Info
+      totalMessage = (unsigned char *) realloc(totalMessage, *totalMessageSize + DATA_HEADER_LEN);
+      totalMessage[(*totalMessageSize)++] = C_DATA;                       // C
+      totalMessage[(*totalMessageSize)++] = sequenceNum;                  // N
+      aux = MIN((N_BYTES_TO_SEND - DATA_HEADER_LEN), (*messageSize - i)); // MIN(Number of Bytes we can send, remaining bytes)
+      totalMessage[(*totalMessageSize)++] = (aux >> 8) & 0xFF; // L2
+      totalMessage[(*totalMessageSize)++] = (aux) & 0xFF;      // L1
+      sequenceNum = (sequenceNum + 1) % MODULE; // [0 - 254]
+      auxBytesToSend += aux;
+      
+      (*numPackets)++;
+      // printf("\nAuxBytesToSend: %ld\n", auxBytesToSend);
+    }  
+    totalMessage = (unsigned char *) realloc(totalMessage, *totalMessageSize + 1);
+    totalMessage[(*totalMessageSize)++] = messageToSend[i];
+  }
+  // printf("Last Element: %p\n", totalMessage[*totalMessageSize - 1]);
+  // printf("\nTotal Size: %ld\n", *totalMessageSize);
+  
+  free(messageToSend);
+
+  return totalMessage;
 }
 
 int main(int argc, char** argv)
@@ -216,25 +248,35 @@ int main(int argc, char** argv)
   printf("START Frame size: %ld\n", packageSize);
 
   // START -> Send
+  printf("\n-- SENT START --\n");
   llwrite(startPackage, packageSize);
 
   numRetries = 0;
 
+  unsigned char* totalMessage;
+  off_t totalMessageSize = 0;
+  int numPackets;
+  totalMessage = encapsulateMessage(msg, &fileSize, &totalMessageSize, &numPackets);
+
+
   // Trama de Informação para o Recetor
-  unsigned char someRandomBytes[BUF_MAX_SIZE];
-  someRandomBytes[0] = 0x7D;
-  someRandomBytes[1] = 0xFB;
-  someRandomBytes[2] = 0xCC;
-  someRandomBytes[3] = 0xED;
-  someRandomBytes[4] = 0x0E;
-  someRandomBytes[5] = 0x0A;
-  someRandomBytes[6] = 0xFB;
-  someRandomBytes[7] = 0xCC;
-  someRandomBytes[8] = 0xED;
-  someRandomBytes[9] = 0X0E;
   
-  // printf("Tamanho do buffer: %d\n", sizeof(someRandomBytes));
-  llwrite(someRandomBytes, 10);
+  printf("numPackets to Send: %d - \n", numPackets);
+  llwrite(totalMessage, totalMessageSize);
+
+  // unsigned char someRandomBytes[BUF_MAX_SIZE];
+  // someRandomBytes[0] = 0x7D;
+  // someRandomBytes[1] = 0xFB;
+  // someRandomBytes[2] = 0xCC;
+  // someRandomBytes[3] = 0xED;
+  // someRandomBytes[4] = 0x0E;
+  // someRandomBytes[5] = 0x0A;
+  // someRandomBytes[6] = 0xFB;
+  // someRandomBytes[7] = 0xCC;
+  // someRandomBytes[8] = 0xED;
+  // someRandomBytes[9] = 0X0E;
+  // llwrite(someRandomBytes, 10);
+
 
   printf("\nEND!\n");
 

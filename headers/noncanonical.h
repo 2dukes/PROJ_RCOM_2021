@@ -9,10 +9,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <math.h>
 
 #include "macros.h"
 #include "generalFunctions.h"
 
 int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage, off_t* receivedMessageSize);
 
-off_t llread(int fd, int numPackets, unsigned char* messageRead, unsigned char messageType);
+off_t llread(int fd, int numPackets, unsigned char* messageRead);

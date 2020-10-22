@@ -6,13 +6,13 @@ volatile int STOP=FALSE;
 
 int deStuffing(unsigned char * message, int size, unsigned char* receiveMessage, off_t* receiveMessageSize) {
   int currentMessageSize = 0;
-  unsigned char* dataBytes = (unsigned char *) malloc(0);
+  unsigned char dataBytes[N_BYTES_TO_SEND + 1];
   *receiveMessageSize = 0;
 
   for(int i = 0; i < size; i++) {
-    dataBytes = (unsigned char*) realloc(dataBytes, currentMessageSize + 1);
+    // dataBytes = (unsigned char*) realloc(dataBytes, currentMessageSize + 1);
 
-    receiveMessage = (unsigned char*) realloc(receiveMessage, *receiveMessageSize + 1);
+    // receiveMessage = (unsigned char*) realloc(receiveMessage, *receiveMessageSize + 1);
 
     // printf("message[%d] = %p\n", i, message[i]);
     if(message[i] == ESC) {
@@ -48,7 +48,7 @@ int deStuffing(unsigned char * message, int size, unsigned char* receiveMessage,
   memset(message, 0, size); // Clear array
   memcpy(message, dataBytes, currentMessageSize); // Substitute original array with destuffed content
 
-  free(dataBytes);
+  // free(dataBytes);
   
   return currentMessageSize;
 }
@@ -153,38 +153,35 @@ void llopen(int fd, struct termios* oldtio, struct termios* newtio) {
 
 }
 
-void saveMessage(unsigned char* messageRead, off_t* messageReadSize, unsigned char* currentMessage, off_t currentMessageSize, unsigned char messageType) {
+void saveMessage(unsigned char* messageRead, off_t* messageReadSize, unsigned char* currentMessage, off_t currentMessageSize) {
   // printf("-%ld-\n", currentMessageSize);
   for(int i = 0; i < currentMessageSize; i++) {
-    if(messageType != C_DATA)
-      messageRead = (unsigned char*) realloc(messageRead, *messageReadSize + 1);
-    
+    // messageRead = (unsigned char*) realloc(messageRead, *messageReadSize + 1);
     messageRead[*messageReadSize] = currentMessage[i];
     
-    printf("currentMessage[%d] = %p\n", i, currentMessage[i]);
+    // printf("currentMessage[%d] = %p\n", i, currentMessage[i]);
     printf("messageRead[%ld] = %p\n", *messageReadSize, messageRead[*messageReadSize]);
 
     (*messageReadSize)++;
   }
 }
 
-off_t llread(int fd, int numPackets, unsigned char* messageRead, unsigned char messageType) {
+off_t llread(int fd, int numPackets, unsigned char* messageRead) {
   int i = 0, statusCode;
   int tNumber = -1; // [Nr = 0 | 1]
   off_t currentMessageSize = 0;
   off_t messageReadSize = 0;
 
   // unsigned char* messageRead = (unsigned char *) malloc(0);
-  unsigned char* currentMessage;
+  unsigned char currentMessage[N_BYTES_TO_SEND + 1];
 
   while(i < numPackets) {
     currentMessageSize = 0;
-    currentMessage = (unsigned char*) malloc(0);
     // VALORES DE C são gerados consoante recebidos! CORRIGIR
     statusCode = receiveTrama(&tNumber, fd, currentMessage, &currentMessageSize);
     if(statusCode == 0) {
       printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
-      saveMessage(messageRead, &messageReadSize, currentMessage, currentMessageSize, messageType);
+      saveMessage(messageRead, &messageReadSize, currentMessage, currentMessageSize);
       sendSupervisionTrama(fd, getCField("RR", !tNumber));
       i++;
     }
@@ -199,7 +196,6 @@ off_t llread(int fd, int numPackets, unsigned char* messageRead, unsigned char m
         sendSupervisionTrama(fd, getCField("REJ", tNumber));
       }
     }
-    free(currentMessage);
   }
   return messageReadSize;
 }
@@ -242,7 +238,8 @@ int main(int argc, char** argv)
 
   // Receive start Trama -> Capture fileName and fileTotalSize
   unsigned char* startMessage = (unsigned char*) malloc(0);
-  off_t messageReadSize = llread(fd, 1, startMessage, C_START); // Only 1 Frame
+  off_t messageReadSize = llread(fd, 1, startMessage); // Only 1 Frame
+  printf("\n-- RECEIVED START --\n");
 
   // Parse it's info
   off_t dataSize = sizeOfFile_Start(startMessage); // File Size
@@ -251,16 +248,29 @@ int main(int argc, char** argv)
   printf("-- File Size: %ld --\n", dataSize);
   printf("-- File Name: %s --\n", fileName);
 
+  free(startMessage);
+
   // Receive Trama (I)
-  printf("Starting Receive Trama (I)\n");
+  // printf("Starting Receive Trama (I)\n");
   
-  int numPackets = 1; // Will be calculated in the future.
+
+  int completePackets = (dataSize) / (N_BYTES_TO_SEND - DATA_HEADER_LEN);
+  float remain = (float) dataSize / (N_BYTES_TO_SEND - DATA_HEADER_LEN) - completePackets;
+  int lastBytes = remain * (N_BYTES_TO_SEND - DATA_HEADER_LEN);
+  off_t sizeToAllocate = (completePackets * N_BYTES_TO_SEND) + lastBytes + DATA_HEADER_LEN;
   
-  unsigned char* totalMessage = (unsigned char*) malloc(dataSize);
-  llread(fd, numPackets, totalMessage, C_DATA);
+  // printf("CompletePackets: %d\n", completePackets);
+  // printf("Remain: %f\n", remain);
+  // printf("LastBytes: %d\n", lastBytes);
+  // printf("sizeToAllocate: %ld\n", sizeToAllocate);
+  
+  // 11324
+  int numPackets = 89; // Will be calculated in the future.
+  unsigned char* totalMessage = (unsigned char*) malloc(sizeToAllocate);
+  llread(fd, numPackets, totalMessage);
 
   printf("END!\n");    
-
+  
   sleep(1);
 
   if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {

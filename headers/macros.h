@@ -27,10 +27,15 @@
 #define ESC_XOR1 0X5E
 #define ESC_XOR2 0x5D
 
+#define DATA_HEADER_LEN 4
+#define MODULE 255
+
 #define C_DATA 0x01
 #define C_START 0x02
 #define C_END 0x03
 #define T1 0x00
 #define T2 0x01
 #define L1 0x04 // Fixed for pinguim.gif -> 10968 -> 2 OCTETOS
+
+#define MIN(a, b) ( (a < b) ? a : b)
 // #define L2 0x0B // pinguim.gif -> 11 chars -> 11 OCTETOS

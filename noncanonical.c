@@ -204,8 +204,10 @@ off_t llread(int fd, int numPackets, unsigned char* messageRead) {
     statusCode = receiveTrama(&tNumber, fd, currentMessage, &currentMessageSize);
     if(statusCode == 0) {
       printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
-      if(!checkEnd(messageRead, messageReadSize))
+      if(!checkEnd(currentMessage, currentMessageSize)) {
         saveMessage(messageRead, &messageReadSize, currentMessage, currentMessageSize);
+        printf("ASDASDASDASD\n");
+      }
       else 
         printf("-- RECEIVED END --\n");
       sendSupervisionTrama(fd, getCField("RR", !tNumber));
@@ -243,6 +245,15 @@ unsigned char *nameOfFile_Start(unsigned char *start)
 
   name[L2] = '\0';
   return name;
+}
+
+void createFile(unsigned char *data, off_t* sizeFile, unsigned char filename[])
+{
+  FILE *file = fopen((char *)filename, "wb+");
+  fwrite((void *)data, 1, *sizeFile, file);
+  printf("%zd\n", *sizeFile);
+  printf("New file created\n");
+  fclose(file);
 }
 
 int main(int argc, char** argv)
@@ -294,14 +305,19 @@ int main(int argc, char** argv)
   llread(fd, numPackets, totalMessage);
   // printf("%ld\n", sizeToAllocate);
 
-  numPackets = 1;
-  llread(fd, numPackets, totalMessage);
+  printf("- SEPARATOR -\n");
 
-  printf("\n-- RECEIVED END --\n");
+  unsigned char* endMessage = (unsigned char*) malloc(startMessageSize);
+  numPackets = 1;
+  llread(fd, numPackets, endMessage);
+
+  // for(int i = 0; i < N_BYTES_TO_SEND; i++) 
+  //   printf("- %p -\n", totalMessage[i]);
+  // createFile();
 
   free(startMessage);
   free(totalMessage);
-  
+
   printf("END!\n");    
   
   sleep(1);

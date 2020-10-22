@@ -200,6 +200,8 @@ unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSi
       aux = MIN((N_BYTES_TO_SEND - DATA_HEADER_LEN), (*messageSize - i)); // MIN(Number of Bytes we can send, remaining bytes)
       totalMessage[(*totalMessageSize)++] = (aux >> 8) & 0xFF; // L2
       totalMessage[(*totalMessageSize)++] = (aux) & 0xFF;      // L1
+      printf("%d | %p | %p\n", aux, totalMessage[2], totalMessage[3]);
+  
       sequenceNum = (sequenceNum + 1) % MODULE; // [0 - 254]
       auxBytesToSend += aux;
       
@@ -262,6 +264,10 @@ int main(int argc, char** argv)
   
   printf("numPackets to Send: %d - \n", numPackets);
   llwrite(totalMessage, totalMessageSize);
+
+  // for(int i = 0; i < N_BYTES_TO_SEND; i++) 
+  //     printf("- %p -\n", totalMessage[i]);
+  
   free(totalMessage);
 
   // unsigned char someRandomBytes[BUF_MAX_SIZE];

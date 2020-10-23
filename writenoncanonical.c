@@ -185,14 +185,14 @@ unsigned char* buildControlTrama(char* fileName, off_t* fileSize, unsigned char 
   return package;
 }
 
-void createFile(unsigned char *data, off_t* sizeFile, unsigned char filename[])
-{
-  FILE *file = fopen((char *)filename, "wb+");
-  fwrite((void *)data, 1, *sizeFile, file);
-  printf("%zd\n", *sizeFile);
-  printf("New file created\n");
-  fclose(file);
-}
+// void createFile(unsigned char *data, off_t* sizeFile, unsigned char filename[])
+// {
+//   FILE *file = fopen((char *)filename, "wb+");
+//   fwrite((void *)data, 1, *sizeFile, file);
+//   printf("%zd\n", *sizeFile);
+//   printf("New file created\n");
+//   fclose(file);
+// }
 
 unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSize, off_t* totalMessageSize, int* numPackets) {
   unsigned char* totalMessage = (unsigned char*) malloc(0);

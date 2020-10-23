@@ -307,21 +307,31 @@ int main(int argc, char** argv)
 
   printf("- SEPARATOR -\n");
 
-  numPackets = 1;
-  llread(fd, numPackets, NULL);
+  llread(fd, 1, NULL);
 
-  for(int i = 0; i < N_BYTES_TO_SEND; i++) 
-    printf("- %p -\n", totalMessage[i]);
+  // for(int i = 0; i < N_BYTES_TO_SEND + 8; i++) 
+  //   printf("- %p -\n", totalMessage[i]);
 
-  // unsigned char* byteData[dataSize];
-  // for(off_t i = 0; i < sizeToAllocate; i++) {
-  //   byteData
-  // }
-  
-  // createFile();
+  unsigned char byteData[dataSize];
+  off_t auxCount = 0;
+  for(off_t i = 0; i < sizeToAllocate; i++) {
+    i += DATA_HEADER_LEN;
+    int min =  MIN((N_BYTES_TO_SEND - DATA_HEADER_LEN), (sizeToAllocate - i));
+    // printf("%d\n", min);
+    memcpy(&byteData[auxCount], &totalMessage[i], min);
+    auxCount += min;
+
+    // printf("-%ld-\n", auxCount);
+    i += min - 1;
+  }
 
   free(startMessage);
   free(totalMessage);
+
+  // for(int k = 0; k < 10968; k++) 
+  //   printf("- byteData[%ld] = %p -\n", k, byteData[k]);
+
+  createFile(byteData, &dataSize, "test.gif");
 
   printf("END!\n");    
   

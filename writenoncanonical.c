@@ -185,13 +185,22 @@ unsigned char* buildControlTrama(char* fileName, off_t* fileSize, unsigned char 
   return package;
 }
 
+void createFile(unsigned char *data, off_t* sizeFile, unsigned char filename[])
+{
+  FILE *file = fopen((char *)filename, "wb+");
+  fwrite((void *)data, 1, *sizeFile, file);
+  printf("%zd\n", *sizeFile);
+  printf("New file created\n");
+  fclose(file);
+}
+
 unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSize, off_t* totalMessageSize, int* numPackets) {
   unsigned char* totalMessage = (unsigned char*) malloc(0);
   
   int16_t aux;
   off_t auxBytesToSend = 0;
   int8_t sequenceNum = 0;
-
+  // unsigned char temp[10968];
   for(off_t i = 0; i < *messageSize; i++) {
     if(i == auxBytesToSend) { // Each packet has 128 bytes of Info
       totalMessage = (unsigned char *) realloc(totalMessage, *totalMessageSize + DATA_HEADER_LEN);
@@ -210,10 +219,11 @@ unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSi
     }  
     totalMessage = (unsigned char *) realloc(totalMessage, *totalMessageSize + 1);
     totalMessage[(*totalMessageSize)++] = messageToSend[i];
+    // temp[i] = messageToSend[i];
   }
   // printf("Last Element: %p\n", totalMessage[*totalMessageSize - 1]);
   // printf("\nTotal Size: %ld\n", *totalMessageSize);
-  
+  // createFile(temp, messageSize, "test.gif");
   free(messageToSend);
 
   return totalMessage;
@@ -265,7 +275,7 @@ int main(int argc, char** argv)
   printf("numPackets to Send: %d - \n", numPackets);
   llwrite(totalMessage, totalMessageSize);
 
-  // for(int i = 0; i < N_BYTES_TO_SEND; i++) 
+  // for(int i = 0; i < (11324 - 60); i++) 
   //     printf("- %p -\n", totalMessage[i]);
   
   free(totalMessage);

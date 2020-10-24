@@ -6,8 +6,7 @@ volatile int STOP=FALSE;
 
 int numRetries = 0;
 
-bool readSuccessfulFRAME = false;
-bool readSuccessfulSET = false;
+bool readSuccessful = false;
 int fd;
 
 unsigned char toSend[N_BYTES_FLAGS + (N_BYTES_TO_SEND * 2)]; // Buffer da mensagem a enviar
@@ -16,7 +15,7 @@ int nBytesRead;
 void alarmHandler(int sigNum) {
   // Colocar aqui o código que deve ser executado
   if(numRetries < MAX_RETR) {
-    if(readSuccessfulSET) 
+    if(readSuccessful) 
       return;
     
     printf("\n--- Sending SET: Retry %d ---\n", numRetries);
@@ -30,9 +29,25 @@ void alarmHandler(int sigNum) {
   }
 }
 
+void resendDISC(int signum) {
+  if(numRetries < MAX_RETR) {
+    if(readSuccessful) 
+      return;
+    
+    printf("\n--- Sending DISC: Retry %d ---\n", numRetries);
+    sendSupervisionTrama(fd, getCField("DISC", false));
+    alarm(TIMEOUT);
+    numRetries++;
+  } 
+  else {
+    printf("Can't connect to Receptor! (After %d tries)\n", MAX_RETR);
+    exit(1);
+  }
+}
+
 void resendTrama(int sigNum) {
   if(numRetries < MAX_RETR) {
-    if(readSuccessfulFRAME) 
+    if(readSuccessful) 
       return;
     
     printf("\nSending Trama: Retry %d\n", numRetries);
@@ -54,7 +69,7 @@ void llopen(struct termios* oldtio, struct termios* newtio) {
   sendSupervisionTrama(fd, getCField("SET", false));
   
   // RECEIVE UA
-  readSuccessfulSET = receiveSupervisionTrama(true, getCField("UA", false), fd) == 1;
+  readSuccessful = receiveSupervisionTrama(true, getCField("UA", false), fd) == 1;
   printf("\n--- RECEIVED UA ---\n");
 
 }
@@ -123,10 +138,10 @@ void llwrite(unsigned char *buf, off_t size) {
       printf("\nSENT TRAMA (%d)!\n", nTrama);
       int res = write(fd, toSend, finalIndex + 1);
       
-      readSuccessfulFRAME = false;
+      readSuccessful = false;
       printf("\nReceiving RR / REJ\n");
       int returnState = receiveSupervisionTrama(true, getCField("RR", !nTrama), fd); // [Nr = 0 | 1]
-      readSuccessfulFRAME = true;
+      readSuccessful = true;
       numRetries = 0;
 
       if(returnState == 1) {
@@ -209,7 +224,7 @@ unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSi
       aux = MIN((N_BYTES_TO_SEND - DATA_HEADER_LEN), (*messageSize - i)); // MIN(Number of Bytes we can send, remaining bytes)
       totalMessage[(*totalMessageSize)++] = (aux >> 8) & 0xFF; // L2
       totalMessage[(*totalMessageSize)++] = (aux) & 0xFF;      // L1
-      printf("%d | %p | %p\n", aux, totalMessage[2], totalMessage[3]);
+      // printf("%d | %p | %p\n", aux, totalMessage[2], totalMessage[3]);
   
       sequenceNum = (sequenceNum + 1) % MODULE; // [0 - 254]
       auxBytesToSend += aux;
@@ -227,6 +242,19 @@ unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSi
   free(messageToSend);
 
   return totalMessage;
+}
+
+void llclose() {
+  printf("\n-- SENT DISC --\n");
+  sendSupervisionTrama(fd, getCField("DISC", true));
+  (void) signal(SIGALRM, resendDISC);
+  numRetries = 0;
+  readSuccessful = false;
+  receiveSupervisionTrama(true, getCField("DISC", true), fd);
+  printf("\n-- RECEIVED DISC --\n");
+  readSuccessful = true;
+  printf("\n-- SENT UA --\n");
+  sendSupervisionTrama(fd, getCField("UA", true));
 }
 
 int main(int argc, char** argv)
@@ -301,6 +329,8 @@ int main(int argc, char** argv)
   // END -> Send
   printf("\n-- SENT END --\n");
   llwrite(endPackage, endPackageSize);
+
+  llclose();
 
   printf("\nEND!\n");
 

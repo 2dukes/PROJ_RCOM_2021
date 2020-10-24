@@ -254,6 +254,13 @@ void createFile(unsigned char *data, off_t* sizeFile, unsigned char filename[])
   fclose(file);
 }
 
+void llclose(int fd) {
+  printf("\n-- SENT DISC --\n");
+  sendSupervisionTrama(fd, getCField("DISC", true));
+  receiveSupervisionTrama(false, getCField("UA", true), fd);
+  printf("\n-- RECEIVED UA --\n");
+}
+
 int main(int argc, char** argv)
 {
   int fd,c, res;
@@ -332,6 +339,8 @@ int main(int argc, char** argv)
   //   printf("- byteData[%ld] = %p -\n", k, byteData[k]);
 
   createFile(byteData, &dataSize, "test.gif");
+
+  llclose(fd);
 
   printf("END!\n");    
   

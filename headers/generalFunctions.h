@@ -12,16 +12,28 @@
 
 #include "macros.h" 
 
+/*
+* Retorna o Campo de Controlo (C) especificado. 
+*/
 unsigned char getCField(char typeMessage[25], bool nTrama);
 
+/*
+* Faz o parse do BCC2 de acordo com o pacote de dados recebido.
+*/
 unsigned char computeBcc2(unsigned char data[BUF_MAX_SIZE], int nBytes, int startPosition);
 
 /*
-      Open serial port device for reading and writing and not as controlling tty
-      because we don't want to get killed if linenoise sends CTRL-C.
+*     Open serial port device for reading and writing and not as controlling tty
+*      because we don't want to get killed if linenoise sends CTRL-C.
 */
 void configureSerialPort(int fd, struct termios* oldtio, struct termios* newtio);
 
+/*
+* Lê uma trama de Supervisão.
+*/
 int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd);
 
+/*
+* Envia uma trama de Supervisão.
+*/
 void sendSupervisionTrama(int fd, unsigned char cField);

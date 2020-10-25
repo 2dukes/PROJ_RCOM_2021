@@ -204,10 +204,7 @@ off_t llread(int fd, int numPackets, unsigned char* messageRead) {
     statusCode = receiveTrama(&tNumber, fd, currentMessage, &currentMessageSize);
     if(statusCode == 0) {
       printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
-      if(!checkEnd(currentMessage, currentMessageSize)) 
-        saveMessage(messageRead, &messageReadSize, currentMessage, currentMessageSize);
-      else 
-        printf("\n-- RECEIVED END --\n");
+      saveMessage(messageRead, &messageReadSize, currentMessage, currentMessageSize);
       sendSupervisionTrama(fd, getCField("RR", !tNumber));
       i++;
     }
@@ -249,7 +246,7 @@ void createFile(unsigned char *data, off_t* sizeFile, unsigned char filename[])
 {
   FILE *file = fopen((char *)filename, "wb+");
   fwrite((void *)data, 1, *sizeFile, file);
-  printf("%zd\n", *sizeFile);
+  printf("%ld\n", *sizeFile);
   printf("New file created\n");
   fclose(file);
 }
@@ -279,7 +276,7 @@ int main(int argc, char** argv)
   llopen(fd, &oldtio, &newtio);
 
   // Receive start Trama -> Capture fileName and fileTotalSize
-  startMessage = (unsigned char*) malloc(0);
+  startMessage = (unsigned char*) malloc(N_BYTES_TO_SEND);
   startMessageSize = llread(fd, 1, startMessage); // Only 1 Frame
   printf("\n-- RECEIVED START --\n");
 
@@ -314,7 +311,12 @@ int main(int argc, char** argv)
 
   printf("- SEPARATOR -\n");
 
-  llread(fd, 1, NULL);
+  // Receive END
+  unsigned char* endMessage = (unsigned char*) malloc(N_BYTES_TO_SEND);
+  off_t endMessageSize = llread(fd, 1, endMessage);
+
+  if(checkEnd(endMessage, endMessageSize)) 
+    printf("\n-- RECEIVED END --\n");
 
   // for(int i = 0; i < N_BYTES_TO_SEND + 8; i++) 
   //   printf("- %p -\n", totalMessage[i]);
@@ -333,6 +335,7 @@ int main(int argc, char** argv)
   }
 
   free(startMessage);
+  free(endMessage);
   free(totalMessage);
 
   // for(int k = 0; k < 10968; k++) 

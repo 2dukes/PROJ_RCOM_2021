@@ -21,7 +21,7 @@ unsigned char getCField(char typeMessage[25], bool nTrama) {
         return C_REJ(nTrama);
 }
 
-unsigned char computeBcc2(unsigned char data[BUF_MAX_SIZE], int nBytes, int startPosition) {
+unsigned char computeBcc2(unsigned char data[], int nBytes, int startPosition) {
   int result = data[startPosition];
   
   for(int i = startPosition + 1; i < startPosition + nBytes; i++)
@@ -143,4 +143,16 @@ void sendSupervisionTrama(int fd, unsigned char cField) {
     // printf("-%d-\n", sizeof(buf));
     res = write(fd, buf, sizeof(buf));   
     printf("%d bytes written\n", res);
+}
+
+void checkMaxBytesToSend(off_t* packageSize) {
+  if(N_BYTES_TO_SEND < *packageSize) {
+    printf("\n\nN_BYTES_TO_SEND (Data Frame size) has to be greater than the Control Frame size, which is = %d\n\n", *packageSize);
+    exit(1);
+  }
+  else if(N_BYTES_TO_SEND > MAX_NUM_OCTETS) {
+    printf("%ld\n", MAX_NUM_OCTETS);
+    printf("\n\nN_BYTES_TO_SEND can\'t be larger than %ld. Please choose a smaller value.\n\n", MAX_NUM_OCTETS);
+    exit(1);
+  }
 }

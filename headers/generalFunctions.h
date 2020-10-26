@@ -20,7 +20,7 @@ unsigned char getCField(char typeMessage[25], bool nTrama);
 /*
 * Faz o parse do BCC2 de acordo com o pacote de dados recebido.
 */
-unsigned char computeBcc2(unsigned char data[BUF_MAX_SIZE], int nBytes, int startPosition);
+unsigned char computeBcc2(unsigned char data[], int nBytes, int startPosition);
 
 /*
 *     Open serial port device for reading and writing and not as controlling tty
@@ -37,3 +37,8 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd);
 * Envia uma trama de Supervisão.
 */
 void sendSupervisionTrama(int fd, unsigned char cField);
+
+/*
+* Verifica se o número máximo de Bytes a enviar foi excedido (2^16)
+*/
+void checkMaxBytesToSend(off_t* packageSize);

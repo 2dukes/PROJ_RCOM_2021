@@ -61,19 +61,6 @@ void resendTrama(int sigNum) {
   }
 }
 
-void llopen(struct termios* oldtio, struct termios* newtio) {
-  configureSerialPort(fd, oldtio, newtio);
-
-  // SEND SET
-  printf("\n--- Sending SET ---\n");
-  sendSupervisionTrama(fd, getCField("SET", false));
-  
-  // RECEIVE UA
-  readSuccessful = receiveSupervisionTrama(true, getCField("UA", false), fd) == 1;
-  printf("\n--- RECEIVED UA ---\n");
-
-}
-
 int byteStuffing(unsigned char* dataToSend, int size) {
   int pos = 0, startingPos = 4;
   int index = 0, bytesTransformed = 0;
@@ -106,6 +93,19 @@ int byteStuffing(unsigned char* dataToSend, int size) {
   // Copy "stuffed" array into toSend
   memcpy(&toSend[4], auxToSend, bytesTransformed);
   return 4 + bytesTransformed;
+}
+
+void llopen(struct termios* oldtio, struct termios* newtio) {
+  configureSerialPort(fd, oldtio, newtio);
+
+  // SEND SET
+  printf("\n--- Sending SET ---\n");
+  sendSupervisionTrama(fd, getCField("SET", false));
+  
+  // RECEIVE UA
+  readSuccessful = receiveSupervisionTrama(true, getCField("UA", false), fd) == 1;
+  printf("\n--- RECEIVED UA ---\n");
+
 }
 
 void llwrite(unsigned char *buf, off_t size) {
@@ -197,17 +197,11 @@ unsigned char* buildControlTrama(char* fileName, off_t* fileSize, unsigned char 
   
   *packageSize = 9 + fileNameSize;
 
+  checkMaxBytesToSend(packageSize);
+  // printf("\nPackage Size: %ld\n", *packageSize);
+
   return package;
 }
-
-// void createFile(unsigned char *data, off_t* sizeFile, unsigned char filename[])
-// {
-//   FILE *file = fopen((char *)filename, "wb+");
-//   fwrite((void *)data, 1, *sizeFile, file);
-//   printf("%zd\n", *sizeFile);
-//   printf("New file created\n");
-//   fclose(file);
-// }
 
 unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSize, off_t* totalMessageSize, int* numPackets) {
   unsigned char* totalMessage = (unsigned char*) malloc(0);
@@ -228,7 +222,6 @@ unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSi
   
       sequenceNum = (sequenceNum + 1) % MODULE; // [0 - 254]
       auxBytesToSend += aux;
-      
       (*numPackets)++;
       // printf("\nAuxBytesToSend: %ld\n", auxBytesToSend);
     }  
@@ -238,9 +231,10 @@ unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSi
   }
   // printf("Last Element: %p\n", totalMessage[*totalMessageSize - 1]);
   // printf("\nTotal Size: %ld\n", *totalMessageSize);
+
   // createFile(temp, messageSize, "test.gif");
   free(messageToSend);
-
+  
   return totalMessage;
 }
 

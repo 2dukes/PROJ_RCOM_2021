@@ -64,7 +64,7 @@ int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage, off_t* rec
 
   bool cFlag; // !nTrama = [Ns = 0 | 1]
 
-  unsigned char dataBytes[BUF_MAX_SIZE];
+  unsigned char dataBytes[N_BYTES_TO_SEND];
   int index = 0;
 
   while (strcmp(state[i], "STOP") != 0) {       /* loop for input */

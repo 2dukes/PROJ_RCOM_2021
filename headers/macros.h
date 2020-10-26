@@ -3,8 +3,6 @@
 
 #define C_I( n ) ( (n == 0) ? 0x00 : 0x40 )
 
-#define BUF_MAX_SIZE 256
-
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -36,6 +34,8 @@
 #define T1 0x00
 #define T2 0x01
 #define L1 0x04 // Fixed for pinguim.gif -> 10968 -> 2 OCTETOS
+
+#define MAX_NUM_OCTETS 65536 // 2^16
 
 #define MIN(a, b) ( (a < b) ? a : b)
 // #define L2 0x0B // pinguim.gif -> 11 chars -> 11 OCTETOS

@@ -42,3 +42,14 @@ void sendSupervisionTrama(int fd, unsigned char cField);
 * Verifica se o número máximo de Bytes a enviar foi excedido (2^16)
 */
 void checkMaxBytesToSend(off_t* packageSize);
+
+struct readReturn {
+    unsigned char* currentMessage;
+    int currentMessageSize;
+};
+
+struct receiveTramaReturn {
+    unsigned char* currentMessage;
+    int statusCode;
+    int currentMessageSize;
+};

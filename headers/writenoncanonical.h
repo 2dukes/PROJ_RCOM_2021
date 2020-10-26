@@ -51,7 +51,7 @@ void llopen(struct termios* oldtio, struct termios* newtio);
 * Envia as tramas I.
 * Data link layer
 */
-void llwrite(unsigned char *buf, off_t size);
+void llwrite(unsigned char *buf, off_t size, bool* nTrama);
 
 /*
 * Envia a trama de controlo DISC, recebe DISC de volta e envia UA.

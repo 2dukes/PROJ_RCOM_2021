@@ -21,7 +21,7 @@ unsigned char getCField(char typeMessage[25], bool nTrama) {
         return C_REJ(nTrama);
 }
 
-unsigned char computeBcc2(unsigned char data[], int nBytes, int startPosition) {
+unsigned char computeBcc2(unsigned char* data, int nBytes, int startPosition) {
   int result = data[startPosition];
   
   for(int i = startPosition + 1; i < startPosition + nBytes; i++)

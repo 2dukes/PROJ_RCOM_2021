@@ -7,13 +7,14 @@ volatile int STOP=FALSE;
 unsigned char* startMessage;
 off_t startMessageSize;
 
-int deStuffing(unsigned char * message, int size, unsigned char* receiveMessage, off_t* receiveMessageSize) {
+struct readReturn deStuffing(unsigned char * message, int size) {
   int currentMessageSize = 0;
-  unsigned char dataBytes[N_BYTES_TO_SEND + 1];
-  *receiveMessageSize = 0;
+  unsigned char* dataBytes = (unsigned char*) malloc(0);
+
+  struct readReturn returnStruct;
 
   for(int i = 0; i < size; i++) {
-    // dataBytes = (unsigned char*) realloc(dataBytes, currentMessageSize + 1);
+    dataBytes = (unsigned char*) realloc(dataBytes, currentMessageSize + 1);
 
     // receiveMessage = (unsigned char*) realloc(receiveMessage, *receiveMessageSize + 1);
 
@@ -22,41 +23,47 @@ int deStuffing(unsigned char * message, int size, unsigned char* receiveMessage,
       if(i + 1 < size) {
         if(message[i+1] == ESC_XOR1) {
           dataBytes[currentMessageSize++] = FLAG_SET;
-          receiveMessage[(*receiveMessageSize)++] = FLAG_SET;
+          // receiveMessage[(*receiveMessageSize)++] = FLAG_SET;
           // printf("receiveMessage[%d] = %p\n", *receiveMessageSize - 1, receiveMessage[*receiveMessageSize - 1]);
           i++;
         } else if(message[i+1] == ESC_XOR2) {
           dataBytes[currentMessageSize++] = ESC;
-          receiveMessage[(*receiveMessageSize)++] = ESC;
+          // receiveMessage[(*receiveMessageSize)++] = ESC;
           // printf("receiveMessage[%d] = %p\n", *receiveMessageSize - 1, receiveMessage[*receiveMessageSize - 1]);
           i++;
         }
       } else {
         printf("\n--- String Malformed (Incorrect Stuffing)! ---\n");
-        return -1;
+        returnStruct.currentMessage = dataBytes;
+      returnStruct.currentMessageSize = -1;
+      return returnStruct;  
       }
     } else if(message[i] == FLAG_SET){
       printf("\n--- String Malformed (Incorrect Stuffing)! ---\n");
-      return -1;
+      returnStruct.currentMessage = dataBytes;
+      returnStruct.currentMessageSize = -1;
+      return returnStruct;  
     } else {
       dataBytes[currentMessageSize++] = message[i];
-      receiveMessage[(*receiveMessageSize)++] = message[i];
+      // receiveMessage[(*receiveMessageSize)++] = message[i];
       // printf("receiveMessage[%d] = %p\n", *receiveMessageSize - 1, receiveMessage[*receiveMessageSize - 1]);
     }
     
     // printf("dataBytes[%d] = %p\n", currentMessageSize - 1, dataBytes[currentMessageSize - 1]);
   }
 
-  (*receiveMessageSize)--; // To Exclude BCC2
+  // (*receiveMessageSize)--; // To Exclude BCC2
   memset(message, 0, size); // Clear array
   memcpy(message, dataBytes, currentMessageSize); // Substitute original array with destuffed content
 
+  returnStruct.currentMessage = dataBytes;
+  returnStruct.currentMessageSize = currentMessageSize;
   // free(dataBytes);
   
-  return currentMessageSize;
+  return returnStruct;
 }
 
-int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage, off_t* receivedMessageSize) {
+struct receiveTramaReturn receiveTrama(int* nTrama, int fd) {
   unsigned char buf;
   char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC1_OK", "STOP" };
   int i = 0, res;
@@ -64,7 +71,7 @@ int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage, off_t* rec
 
   bool cFlag; // !nTrama = [Ns = 0 | 1]
 
-  unsigned char dataBytes[N_BYTES_TO_SEND];
+  unsigned char* dataBytes = (unsigned char*) malloc(0);
   int index = 0;
 
   while (strcmp(state[i], "STOP") != 0) {       /* loop for input */
@@ -107,13 +114,17 @@ int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage, off_t* rec
           i++;         
         else if(strcmp(state[i], "BCC1_OK") != 0)
           i = 0; // Other_RCV
-        else
+        else {
+          dataBytes = (unsigned char*) realloc(dataBytes, index + 1);
           dataBytes[index++] = buf;
+        }
         break;  
 
       default: 
-        if(strcmp(state[i], "BCC1_OK") == 0) 
+        if(strcmp(state[i], "BCC1_OK") == 0) {
+          dataBytes = (unsigned char*) realloc(dataBytes, index + 1);
           dataBytes[index++] = buf;
+        }
         else // Other_RCV
           i = 0;
     }
@@ -123,24 +134,40 @@ int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage, off_t* rec
     repeatedByte = true;
 
   // Destuffing - Including BCC2
-  int currentMessageSize = deStuffing(dataBytes, index, receivedMessage, receivedMessageSize);
-  if(currentMessageSize == -1)
-    return -1; // PEDIR RETRANSMISSÃO (REJ)
+  
+  struct receiveTramaReturn receiveTramaRet;
+  
+  struct readReturn deStuffingRet = deStuffing(dataBytes, index);
+  receiveTramaRet.currentMessage = deStuffingRet.currentMessage;
+  receiveTramaRet.currentMessageSize = deStuffingRet.currentMessageSize;
+
+  if(deStuffingRet.currentMessageSize == -1) {
+    receiveTramaRet.statusCode = -1;
+    return receiveTramaRet; // PEDIR RETRANSMISSÃO (REJ)
+  }
   
   // At this point dataBytes[index - 1] holds BCC2
-  unsigned char bcc2 = computeBcc2(dataBytes, currentMessageSize - 1, 0); // Excluding BCC2
-  if(bcc2 != dataBytes[currentMessageSize - 1]) {
+  unsigned char bcc2 = computeBcc2(deStuffingRet.currentMessage, deStuffingRet.currentMessageSize - 1, 0); // Excluding BCC2
+  free(dataBytes);
+  
+  if(bcc2 != deStuffingRet.currentMessage[deStuffingRet.currentMessageSize - 1]) {
     if(repeatedByte) {
       *nTrama = cFlag;
-      return 2; // Status Code for Repeated Byte -> Descartar campo de dados
+      receiveTramaRet.statusCode = 2;
+      return receiveTramaRet; // Status Code for Repeated Byte -> Descartar campo de dados
     }
-    else 
-      return -1; // Status Code Error -> PEDIR RETRANSMISSÃO (REJ)
+    else {
+      receiveTramaRet.statusCode = -1;
+      return receiveTramaRet; // Status Code Error -> PEDIR RETRANSMISSÃO (REJ)
+    }
   }
   *nTrama = cFlag;
-  if(repeatedByte) 
-    return 2; // Status Code for Repeated Byte -> Descartar campo de dados
-  return 0;
+  if(repeatedByte) {
+    receiveTramaRet.statusCode = 2;
+    return receiveTramaRet; // Status Code for Repeated Byte -> Descartar campo de dados
+  }
+  receiveTramaRet.statusCode = 0;
+  return receiveTramaRet;
 }
 
 void llopen(int fd, struct termios* oldtio, struct termios* newtio) {
@@ -154,19 +181,6 @@ void llopen(int fd, struct termios* oldtio, struct termios* newtio) {
   sendSupervisionTrama(fd, getCField("UA", false));
   printf("\n--- SENDING UA ---\n");
 
-}
-
-void saveMessage(unsigned char* messageRead, off_t* messageReadSize, unsigned char* currentMessage, off_t currentMessageSize) {
-  // printf("-%ld-\n", currentMessageSize);
-  for(int i = 0; i < currentMessageSize; i++) {
-    // messageRead = (unsigned char*) realloc(messageRead, *messageReadSize + 1);
-    messageRead[*messageReadSize] = currentMessage[i];
-    
-    // printf("currentMessage[%d] = %p\n", i, currentMessage[i]);
-    printf("messageRead[%ld] = %p\n", *messageReadSize, messageRead[*messageReadSize]);
-
-    (*messageReadSize)++;
-  }
 }
 
 bool checkEnd(unsigned char* endMessage, off_t endMessageSize) {
@@ -189,38 +203,39 @@ bool checkEnd(unsigned char* endMessage, off_t endMessageSize) {
   return true;
 }
 
-off_t llread(int fd, int numPackets, unsigned char* messageRead) {
-  int i = 0, statusCode;
-  int tNumber = -1; // [Nr = 0 | 1]
-  off_t currentMessageSize = 0;
-  off_t messageReadSize = 0;
+struct readReturn llread(int fd, int* tNumber) {
+  int statusCode;
 
-  // unsigned char* messageRead = (unsigned char *) malloc(0);
-  unsigned char currentMessage[N_BYTES_TO_SEND + 1];
-
-  while(i < numPackets) {
-    currentMessageSize = 0;
+  struct receiveTramaReturn receiveRet;
+  while(true) {
     // VALORES DE C são gerados consoante recebidos! CORRIGIR
-    statusCode = receiveTrama(&tNumber, fd, currentMessage, &currentMessageSize);
-    if(statusCode == 0) {
-      printf("\nReceived Trama %d with success!\n \nSendign RR (%d)\n", i, !tNumber);
-      saveMessage(messageRead, &messageReadSize, currentMessage, currentMessageSize);
-      sendSupervisionTrama(fd, getCField("RR", !tNumber));
-      i++;
+    receiveRet = receiveTrama(tNumber, fd);
+    if(receiveRet.statusCode == 0) {
+      printf("\nReceived Trama with success!\n \nSendign RR (%d)\n", !(*tNumber));
+      sendSupervisionTrama(fd, getCField("RR", !(*tNumber)));
+      break;
     }
     else {
-      printf("Didn't receive Trama %d with success!\n", i);
-      if(statusCode == 2) {
-        printf("\n-- Repeated Byte --\n\nSendign RR (%d)\n", !tNumber);
-        sendSupervisionTrama(fd, getCField("RR",!tNumber));
+      printf("Didn't receive Trama with success!\n");
+      if(receiveRet.statusCode == 2) {
+        printf("\n-- Repeated Byte --\n\nSendign RR (%d)\n", !(*tNumber));
+        sendSupervisionTrama(fd, getCField("RR",!(*tNumber)));
       }
-      else if(statusCode == -1) { // Send REJ
-        printf("\n-- Retransmit Byte --\n\nSendign REJ (%d)\n", tNumber);
-        sendSupervisionTrama(fd, getCField("REJ", tNumber));
+      else if(receiveRet.statusCode == -1) { // Send REJ
+        printf("\n-- Retransmit Byte --\n\nSendign REJ (%d)\n", *tNumber);
+        sendSupervisionTrama(fd, getCField("REJ", *tNumber));
       }
     }
   }
-  return messageReadSize;
+
+  // for(int i = 0; i < currentMessageSize; i++) {
+  //     printf("currentMessage[%d] = %p\n", i, currentMessage[i]);
+  // }
+  struct readReturn llreadRet;
+  llreadRet.currentMessage = receiveRet.currentMessage;
+  llreadRet.currentMessageSize = receiveRet.currentMessageSize - 1; // Exclude BCC2
+
+  return llreadRet;
 }
 
 off_t sizeOfFile_Start(unsigned char *start)
@@ -262,6 +277,7 @@ int main(int argc, char** argv)
 {
   int fd,c, res;
   struct termios oldtio,newtio;
+  int tNumber = -1; // [Nr = 0 | 1]
 
   if ( (argc < 2) || 
         ((strcmp("/dev/ttyS0", argv[1])!=0) && 
@@ -276,72 +292,44 @@ int main(int argc, char** argv)
   llopen(fd, &oldtio, &newtio);
 
   // Receive start Trama -> Capture fileName and fileTotalSize
-  startMessage = (unsigned char*) malloc(N_BYTES_TO_SEND);
-  startMessageSize = llread(fd, 1, startMessage); // Only 1 Frame
+  struct readReturn startRet;
+
+  startRet = llread(fd, &tNumber); // Only 1 Frame
+  startMessage = startRet.currentMessage;
+  startMessageSize = startRet.currentMessageSize;
+
   printf("\n-- RECEIVED START --\n");
 
   // Parse it's info
   off_t dataSize = sizeOfFile_Start(startMessage); // File Size
+
   unsigned char* fileName = nameOfFile_Start(startMessage); // File Name
 
   printf("-- File Size: %ld --\n", dataSize);
   printf("-- File Name: %s --\n", fileName);
 
-  // Receive Trama (I)
-  // printf("Starting Receive Trama (I)\n");
-  
-  int completePackets = (dataSize) / (N_BYTES_TO_SEND - DATA_HEADER_LEN);
-  float remain = (float) dataSize / (N_BYTES_TO_SEND - DATA_HEADER_LEN) - completePackets;
-  int lastBytes = remain * (N_BYTES_TO_SEND - DATA_HEADER_LEN);
-  off_t sizeToAllocate = (completePackets * N_BYTES_TO_SEND) + lastBytes + DATA_HEADER_LEN;
-  
-  // printf("CompletePackets: %d\n", completePackets);
-  // printf("Remain: %f\n", remain);
-  // printf("LastBytes: %d\n", lastBytes);
-  // printf("sizeToAllocate: %ld\n", sizeToAllocate);
-  
-  // 11324 -> 128
-  int numPackets = completePackets; // Will be calculated in the future.
-  if(remain > 0) 
-    numPackets = completePackets + 1;
-  
-  unsigned char* totalMessage = (unsigned char*) malloc(sizeToAllocate);
-  llread(fd, numPackets, totalMessage);
-  // printf("%ld\n", sizeToAllocate);
+  unsigned char* totalMessage = (unsigned char*) malloc(0);
+  off_t totalMessageSize = 0;
 
-  printf("- SEPARATOR -\n");
+  struct readReturn messageRet;
 
-  // Receive END
-  unsigned char* endMessage = (unsigned char*) malloc(N_BYTES_TO_SEND);
-  off_t endMessageSize = llread(fd, 1, endMessage);
+  while(true) {
+    messageRet = llread(fd, &tNumber);
+    if(checkEnd(messageRet.currentMessage, messageRet.currentMessageSize)) {
+      printf("\n-- RECEIVED END --\n");
+      break;
+    }
 
-  if(checkEnd(endMessage, endMessageSize)) 
-    printf("\n-- RECEIVED END --\n");
+    totalMessage = realloc(totalMessage, totalMessageSize + messageRet.currentMessageSize - DATA_HEADER_LEN);
+    memcpy(&totalMessage[totalMessageSize], &messageRet.currentMessage[DATA_HEADER_LEN], messageRet.currentMessageSize - DATA_HEADER_LEN);
+    totalMessageSize += (messageRet.currentMessageSize - DATA_HEADER_LEN);
 
-  // for(int i = 0; i < N_BYTES_TO_SEND + 8; i++) 
-  //   printf("- %p -\n", totalMessage[i]);
-
-  unsigned char byteData[dataSize];
-  off_t auxCount = 0;
-  for(off_t i = 0; i < sizeToAllocate; i++) {
-    i += DATA_HEADER_LEN;
-    int min =  MIN((N_BYTES_TO_SEND - DATA_HEADER_LEN), (sizeToAllocate - i));
-    // printf("%d\n", min);
-    memcpy(&byteData[auxCount], &totalMessage[i], min);
-    auxCount += min;
-
-    // printf("-%ld-\n", auxCount);
-    i += min - 1;
+    free(messageRet.currentMessage);
   }
-
+    
   free(startMessage);
-  free(endMessage);
+  createFile(totalMessage, &dataSize, "test.gif");
   free(totalMessage);
-
-  // for(int k = 0; k < 10968; k++) 
-  //   printf("- byteData[%ld] = %p -\n", k, byteData[k]);
-
-  createFile(byteData, &dataSize, "test.gif");
 
   llclose(fd);
 

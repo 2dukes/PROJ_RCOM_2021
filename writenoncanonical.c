@@ -108,18 +108,17 @@ void llopen(struct termios* oldtio, struct termios* newtio) {
 
 }
 
-void llwrite(unsigned char *buf, off_t size) {
+void llwrite(unsigned char *buf, off_t size, bool* nTrama) {
     int i = 0;
     int j;
     int nTramasSent = 0;
-    bool nTrama = false; // [Ns = 0 | 1]
 
     while(i < size) {
       j = 4;
     
       toSend[0] = FLAG_SET; // F
       toSend[1] = A_C_SET; // A
-      toSend[2] = C_I(nTrama); // C
+      toSend[2] = C_I(*nTrama); // C
       toSend[3] = A_C_SET ^ toSend[2]; // BCC1
       
       nBytesRead = 0;
@@ -135,18 +134,18 @@ void llwrite(unsigned char *buf, off_t size) {
       int finalIndex = byteStuffing(toSend, nBytesRead + 1); // +1 because of BCC2    
       toSend[finalIndex] = FLAG_SET;
 
-      printf("\nSENT TRAMA (%d)!\n", nTrama);
+      printf("\nSENT TRAMA (%d)!\n", *nTrama);
       int res = write(fd, toSend, finalIndex + 1);
       
       readSuccessful = false;
       printf("\nReceiving RR / REJ\n");
-      int returnState = receiveSupervisionTrama(true, getCField("RR", !nTrama), fd); // [Nr = 0 | 1]
+      int returnState = receiveSupervisionTrama(true, getCField("RR", !(*nTrama)), fd); // [Nr = 0 | 1]
       readSuccessful = true;
       numRetries = 0;
 
       if(returnState == 1) {
         nTramasSent++;
-        nTrama = !nTrama;   
+        *nTrama = !(*nTrama);   
       }
       else if(returnState == 2) // Retransmissão da última trama enviada
         i -= nBytesRead;
@@ -254,6 +253,7 @@ void llclose() {
 int main(int argc, char** argv)
 {
   (void) signal(SIGALRM, alarmHandler);
+  bool nTrama = false; // [Ns = 0 | 1]
 
   int c, res;
   struct termios oldtio,newtio;
@@ -283,7 +283,7 @@ int main(int argc, char** argv)
 
   // START -> Send
   printf("\n-- SENT START --\n");
-  llwrite(startPackage, startPackageSize);
+  llwrite(startPackage, startPackageSize, &nTrama);
 
   numRetries = 0;
 
@@ -295,7 +295,7 @@ int main(int argc, char** argv)
   // Trama de Informação para o Recetor
   
   printf("numPackets to Send: %d - \n", numPackets);
-  llwrite(totalMessage, totalMessageSize);
+  llwrite(totalMessage, totalMessageSize, &nTrama);
 
   // for(int i = 0; i < (11324 - 60); i++) 
   //     printf("- %p -\n", totalMessage[i]);
@@ -322,7 +322,7 @@ int main(int argc, char** argv)
 
   // END -> Send
   printf("\n-- SENT END --\n");
-  llwrite(endPackage, endPackageSize);
+  llwrite(endPackage, endPackageSize, &nTrama);
 
   llclose();
 

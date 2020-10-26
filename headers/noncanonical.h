@@ -20,7 +20,7 @@
 * Faz o destuffing de uma mensagem.
 * Data Link Layer
 */
-int deStuffing(unsigned char * message, int size, unsigned char* receiveMessage, off_t* receiveMessageSize);
+struct readReturn deStuffing(unsigned char * message, int size);
 
 /*
 * Configura a porta de série, lê a trama de controlo SET e envia a trama UA.
@@ -29,22 +29,16 @@ int deStuffing(unsigned char * message, int size, unsigned char* receiveMessage,
 void llopen(int fd, struct termios* oldtio, struct termios* newtio);
 
 /*
-* Guarda a mensagem atual lida no vetor "geral" da mensagem lida.
-* Data Link Layer
-*/
-void saveMessage(unsigned char* messageRead, off_t* messageReadSize, unsigned char* currentMessage, off_t currentMessageSize);
-
-/*
 * Lê tramas I.
 * Data Link Layer
 */
-off_t llread(int fd, int numPackets, unsigned char* messageRead);
+struct readReturn llread(int fd, int* tNumber);
 
 /*
 * Recebe os diferentes bytes da trama.
 * Data Link Layer
 */
-int receiveTrama(int* nTrama, int fd, unsigned char* receivedMessage, off_t* receivedMessageSize);
+struct receiveTramaReturn receiveTrama(int* nTrama, int fd);
 
 /*
 * Lê trama de controlo DISC, envia DISC de volta e recebe UA.

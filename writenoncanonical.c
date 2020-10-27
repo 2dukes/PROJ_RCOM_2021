@@ -261,7 +261,7 @@ int main(int argc, char** argv)
   
   if ( (argc < 3) || 
         ((strcmp("/dev/ttyS10", argv[1])!=0) && 
-        (strcmp("/dev/ttyS0", argv[1])!=0) )) {
+        (strcmp("/dev/ttyS5", argv[1])!=0) )) {
     printf("Usage:\tnserial SerialPort filename\n\tex: nserial /dev/ttyS1 pinguim.gif\n");
     exit(1);
   }

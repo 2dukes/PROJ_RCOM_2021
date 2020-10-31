@@ -66,7 +66,7 @@ struct readReturn deStuffing(unsigned char * message, int size) {
 struct receiveTramaReturn receiveTrama(int* nTrama, int fd) {
   unsigned char buf;
   char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC1_OK", "STOP" };
-  int i = 0, res;
+  int i = 0;
   bool repeatedByte = false;
 
   bool cFlag; // !nTrama = [Ns = 0 | 1]
@@ -75,9 +75,9 @@ struct receiveTramaReturn receiveTrama(int* nTrama, int fd) {
   int index = 0;
 
   while (strcmp(state[i], "STOP") != 0) {       /* loop for input */
-    printf("\nSTATE (R): %s\n", state[i]);
-    res = read(fd, &buf, 1);   /* returns after 1 chars have been input */
-    printf("%p\n", buf);
+    // printf("\nSTATE (R): %s\n", state[i]);
+    read(fd, &buf, 1);   /* returns after 1 chars have been input */
+    // printf("%p\n", buf);
 
     // Special cases (as they use dynamic fields)
     if(buf == (A_C_SET ^ C_I(*nTrama)) || buf == (A_C_SET ^ C_I(!(*nTrama)))) { // BCC1
@@ -150,6 +150,7 @@ struct receiveTramaReturn receiveTrama(int* nTrama, int fd) {
   unsigned char bcc2 = computeBcc2(deStuffingRet.currentMessage, deStuffingRet.currentMessageSize - 1, 0); // Excluding BCC2
   free(dataBytes);
   
+
   if(bcc2 != deStuffingRet.currentMessage[deStuffingRet.currentMessageSize - 1]) {
     if(repeatedByte) {
       *nTrama = cFlag;
@@ -174,11 +175,11 @@ void llopen(int fd, struct termios* oldtio, struct termios* newtio) {
   configureSerialPort(fd, oldtio, newtio);
 
   // RECEIVE SET
-  receiveSupervisionTrama(false, getCField("SET", false), fd);
+  receiveSupervisionTrama(false, getCField("SET", false), fd, A_C_SET);
   printf("\n--- RECEIVING SET ---\n");
 
   // SEND UA 
-  sendSupervisionTrama(fd, getCField("UA", false));
+  sendSupervisionTrama(fd, getCField("UA", false), A_C_SET);
   printf("\n--- SENDING UA ---\n");
 
 }
@@ -204,7 +205,6 @@ bool checkEnd(unsigned char* endMessage, off_t endMessageSize) {
 }
 
 struct readReturn llread(int fd, int* tNumber) {
-  int statusCode;
 
   struct receiveTramaReturn receiveRet;
   while(true) {
@@ -212,18 +212,18 @@ struct readReturn llread(int fd, int* tNumber) {
     receiveRet = receiveTrama(tNumber, fd);
     if(receiveRet.statusCode == 0) {
       printf("\nReceived Trama with success!\n \nSendign RR (%d)\n", !(*tNumber));
-      sendSupervisionTrama(fd, getCField("RR", !(*tNumber)));
+      sendSupervisionTrama(fd, getCField("RR", !(*tNumber)), A_C_SET);
       break;
     }
     else {
       printf("Didn't receive Trama with success!\n");
       if(receiveRet.statusCode == 2) {
         printf("\n-- Repeated Byte --\n\nSendign RR (%d)\n", !(*tNumber));
-        sendSupervisionTrama(fd, getCField("RR",!(*tNumber)));
+        sendSupervisionTrama(fd, getCField("RR",!(*tNumber)), A_C_SET);
       }
       else if(receiveRet.statusCode == -1) { // Send REJ
         printf("\n-- Retransmit Byte --\n\nSendign REJ (%d)\n", *tNumber);
-        sendSupervisionTrama(fd, getCField("REJ", *tNumber));
+        sendSupervisionTrama(fd, getCField("REJ", *tNumber), A_C_SET);
       }
     }
   }
@@ -267,15 +267,17 @@ void createFile(unsigned char *data, off_t* sizeFile, unsigned char filename[])
 }
 
 void llclose(int fd) {
+  printf("\n-- RECEIVED DISC --\n");
+  receiveSupervisionTrama(false, getCField("DISC", true), fd, A_C_SET);
   printf("\n-- SENT DISC --\n");
-  sendSupervisionTrama(fd, getCField("DISC", true));
-  receiveSupervisionTrama(false, getCField("UA", true), fd);
+  sendSupervisionTrama(fd, getCField("DISC", true), Other_A);
+  receiveSupervisionTrama(false, getCField("UA", true), fd, Other_A);
   printf("\n-- RECEIVED UA --\n");
 }
 
 int main(int argc, char** argv)
 {
-  int fd,c, res;
+  int fd;
   struct termios oldtio,newtio;
   int tNumber = -1; // [Nr = 0 | 1]
 
@@ -312,6 +314,7 @@ int main(int argc, char** argv)
   off_t totalMessageSize = 0;
 
   struct readReturn messageRet;
+  double percentageLoaded = 0;
 
   while(true) {
     messageRet = llread(fd, &tNumber);
@@ -324,6 +327,8 @@ int main(int argc, char** argv)
     memcpy(&totalMessage[totalMessageSize], &messageRet.currentMessage[DATA_HEADER_LEN], messageRet.currentMessageSize - DATA_HEADER_LEN);
     totalMessageSize += (messageRet.currentMessageSize - DATA_HEADER_LEN);
 
+    percentageLoaded = (double) totalMessageSize / dataSize;  
+    printf("\n -- | Percentage Loaded: %f | --\n", percentageLoaded * 100);
     free(messageRet.currentMessage);
   }
     

@@ -1,5 +1,6 @@
 #define FLAG_SET 0X7E
 #define A_C_SET 0x03
+#define Other_A 0x01
 
 #define C_I( n ) ( (n == 0) ? 0x00 : 0x40 )
 

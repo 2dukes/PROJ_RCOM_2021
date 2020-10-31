@@ -17,7 +17,7 @@ unsigned char getCField(char typeMessage[25], bool nTrama) {
         return C_UA;
     else if(strcmp(typeMessage, "RR") == 0) 
         return C_RR(nTrama);
-    else if(strcmp(typeMessage, "REJ") == 0) 
+    else // if(strcmp(typeMessage, "REJ") == 0) 
         return C_REJ(nTrama);
 }
 
@@ -61,7 +61,7 @@ void configureSerialPort(int fd, struct termios* oldtio, struct termios* newtio)
   }
 }
 
-int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
+int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd, unsigned char aField) {
   if(withTimeout)
     alarm(TIMEOUT);
 
@@ -76,7 +76,7 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
   int returnState = 1;
 
   while (strcmp(state[i], "STOP") != 0) {       /* loop for input */
-    printf("\nSTATE: %s\n", state[i]);
+    // printf("\nSTATE: %s\n", state[i]);
     res = read(fd, &byte, 1);   /* returns after 1 chars have been input */
     
     if(withTimeout) {
@@ -84,15 +84,15 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
         continue; // Jumps to another iteration
     }
     
-    printf("%p\n", byte);
+    // printf("%p\n", byte);
     
-    if(byte == (A_C_SET ^ cField)) { // BCC1
+    if(byte == (aField ^ cField)) { // BCC1
       if(strcmp(state[i], "C_RCV") == 0) {
           i++;
           continue;
       }
     }
-    else if(byte == cField || byte == C_REJ(0) || byte == C_REJ(1)) { // C
+    if(byte == cField || byte == C_REJ(0) || byte == C_REJ(1)) { // C
       if(strcmp(state[i], "A_RCV") == 0) {
         if(byte == C_REJ(0)) {
           returnState = 2;
@@ -106,6 +106,12 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
         continue;
       }
     }
+    if(byte == aField) { // A
+      if(strcmp(state[i], "FLAG_RCV") == 0) {
+        i++;
+        continue;
+      }
+    }
 
     switch (byte)
     {
@@ -114,13 +120,7 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
           i++;
         else
           i = 1; // STATE = FLAG_RCV
-        break;
-      case A_C_SET: // A
-        if(strcmp(state[i], "FLAG_RCV") == 0)
-          i++;
-        else
-          i = 0; // Other_RCV
-        break;        
+        break;      
       default: // Other_RCV
         // printf("%p | %p | %p\n", byte, (A_C_SET ^ cField), cField);
         i = 0; // STATE = START
@@ -130,29 +130,27 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd) {
   return returnState;
 }
 
-void sendSupervisionTrama(int fd, unsigned char cField) {
-    int res;
-  
+void sendSupervisionTrama(int fd, unsigned char cField, unsigned char aField) {
     unsigned char buf[5];
     buf[0] = FLAG_SET;
-    buf[1] = A_C_SET;
+    buf[1] = aField;
     buf[2] = cField;
-    buf[3] = A_C_SET ^ cField;
+    buf[3] = aField ^ cField;
     buf[4] = FLAG_SET;
 
     // printf("-%d-\n", sizeof(buf));
-    res = write(fd, buf, sizeof(buf));   
-    printf("%d bytes written\n", res);
+    write(fd, buf, sizeof(buf));   
+    // printf("%d bytes written\n", res);
 }
 
 void checkMaxBytesToSend(off_t* packageSize) {
   if(N_BYTES_TO_SEND < *packageSize) {
-    printf("\n\nN_BYTES_TO_SEND (Data Frame size) has to be greater than the Control Frame size, which is = %d\n\n", *packageSize);
+    printf("\n\nN_BYTES_TO_SEND (Data Frame size) has to be greater than the Control Frame size, which is = %ld\n\n", *packageSize);
     exit(1);
   }
   else if(N_BYTES_TO_SEND > MAX_NUM_OCTETS) {
-    printf("%ld\n", MAX_NUM_OCTETS);
-    printf("\n\nN_BYTES_TO_SEND can\'t be larger than %ld. Please choose a smaller value.\n\n", MAX_NUM_OCTETS);
+    printf("%d\n", MAX_NUM_OCTETS);
+    printf("\n\nN_BYTES_TO_SEND can\'t be larger than %d. Please choose a smaller value.\n\n", MAX_NUM_OCTETS);
     exit(1);
   }
 }

@@ -21,7 +21,7 @@
 * Aciona o Timeout da trama de controlo SET.
 * Data Link Layer
 */
-void alarmHandler(int sigNum);
+void setHandler(int sigNum);
 
 /*
 * Aciona o Timeout da trama de controlo DISC.

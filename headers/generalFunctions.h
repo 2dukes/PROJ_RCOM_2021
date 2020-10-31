@@ -31,12 +31,12 @@ void configureSerialPort(int fd, struct termios* oldtio, struct termios* newtio)
 /*
 * Lê uma trama de Supervisão.
 */
-int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd);
+int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd, unsigned char aField);
 
 /*
 * Envia uma trama de Supervisão.
 */
-void sendSupervisionTrama(int fd, unsigned char cField);
+void sendSupervisionTrama(int fd, unsigned char cField, unsigned char aField);
 
 /*
 * Verifica se o número máximo de Bytes a enviar foi excedido (2^16)

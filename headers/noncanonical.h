@@ -49,7 +49,7 @@ void llclose(int fd);
 /*-------------------------- Application Layer --------------------------*/
 
 /*
-* Faz o destuffing de uma mensagem.
+* Verifica se é a última mensagem.
 * Application Layer
 */
 bool checkEnd(unsigned char* endMessage, off_t endMessageSize);

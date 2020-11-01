@@ -13,7 +13,7 @@ unsigned char toSend[N_BYTES_FLAGS + (N_BYTES_TO_SEND * 2)]; // Buffer da mensag
 int nBytesRead;
 
 void setHandler(int sigNum) {
-  // Colocar aqui o código que deve ser executado
+
   if(numRetries < MAX_RETR) {
     if(readSuccessful) 
       return;
@@ -86,9 +86,6 @@ int byteStuffing(unsigned char* dataToSend, int size) {
     startingPos++;
     index++;
   }
-
-  // for(int i = 0; i < bytesTransformed; i++)  
-  //   printf("auxtoSend[%d] = %p\n", i, auxToSend[i]);
 
   // Copy "stuffed" array into toSend
   memcpy(&toSend[4], auxToSend, bytesTransformed);
@@ -168,9 +165,6 @@ unsigned char* openReadFile(char* fileName, off_t* fileSize) {
 
   fileData = (unsigned char *) malloc(*fileSize); // fileData will hold the file bytes -> DON'T FORGET TO FREE MEMORY AT THE END!
   fread(fileData, sizeof(unsigned char), *fileSize, f);
-  
-  // for(int i = 0; i < *fileSize; i++) 
-  //   printf("Byte[%d] = %p", i, fileData[i]);
 
   return fileData;
 }
@@ -178,9 +172,8 @@ unsigned char* openReadFile(char* fileName, off_t* fileSize) {
 unsigned char* buildControlTrama(char* fileName, off_t* fileSize, unsigned char controlField, off_t* packageSize) {
   int fileNameSize = strlen(fileName); // Size in bytes (chars)
   int sizeControlPackage = 5 * sizeof(unsigned char) + L1 * sizeof(unsigned char) + fileNameSize * sizeof(unsigned char);
-  // printf("SizeControlPackage = %d\n", sizeControlPackage);
   
-  unsigned char* package = (unsigned char*) malloc(sizeControlPackage); // FREE MEMORY AT THE END
+  unsigned char* package = (unsigned char*) malloc(sizeControlPackage);
   package[0] = controlField;
   package[1] = T1;
   package[2] = L1;
@@ -197,7 +190,6 @@ unsigned char* buildControlTrama(char* fileName, off_t* fileSize, unsigned char 
   *packageSize = 9 + fileNameSize;
 
   checkMaxBytesToSend(packageSize);
-  // printf("\nPackage Size: %ld\n", *packageSize);
 
   return package;
 }
@@ -208,7 +200,7 @@ unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSi
   int16_t aux;
   off_t auxBytesToSend = 0;
   int8_t sequenceNum = 0;
-  // unsigned char temp[10968];
+
   for(off_t i = 0; i < *messageSize; i++) {
     if(i == auxBytesToSend) { // Each packet has 128 bytes of Info
       totalMessage = (unsigned char *) realloc(totalMessage, *totalMessageSize + DATA_HEADER_LEN);
@@ -217,21 +209,15 @@ unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSi
       aux = MIN((N_BYTES_TO_SEND - DATA_HEADER_LEN), (*messageSize - i)); // MIN(Number of Bytes we can send, remaining bytes)
       totalMessage[(*totalMessageSize)++] = (aux >> 8) & 0xFF; // L2
       totalMessage[(*totalMessageSize)++] = (aux) & 0xFF;      // L1
-      // printf("%d | %p | %p\n", aux, totalMessage[2], totalMessage[3]);
-  
+
       sequenceNum = (sequenceNum + 1) % MODULE; // [0 - 254]
       auxBytesToSend += aux;
       (*numPackets)++;
-      // printf("\nAuxBytesToSend: %ld\n", auxBytesToSend);
     }  
     totalMessage = (unsigned char *) realloc(totalMessage, *totalMessageSize + 1);
     totalMessage[(*totalMessageSize)++] = messageToSend[i];
-    // temp[i] = messageToSend[i];
   }
-  // printf("Last Element: %p\n", totalMessage[*totalMessageSize - 1]);
-  // printf("\nTotal Size: %ld\n", *totalMessageSize);
 
-  // createFile(temp, messageSize, "test.gif");
   free(messageToSend);
   
   return totalMessage;
@@ -294,24 +280,8 @@ int main(int argc, char** argv)
   
   printf("numPackets to Send: %d - \n", numPackets);
   llwrite(totalMessage, totalMessageSize, &nTrama);
-
-  // for(int i = 0; i < (11324 - 60); i++) 
-  //     printf("- %p -\n", totalMessage[i]);
   
   free(totalMessage);
-
-  // unsigned char someRandomBytes[BUF_MAX_SIZE];
-  // someRandomBytes[0] = 0x7D;
-  // someRandomBytes[1] = 0xFB;
-  // someRandomBytes[2] = 0xCC;
-  // someRandomBytes[3] = 0xED;
-  // someRandomBytes[4] = 0x0E;
-  // someRandomBytes[5] = 0x0A;
-  // someRandomBytes[6] = 0xFB;
-  // someRandomBytes[7] = 0xCC;
-  // someRandomBytes[8] = 0xED;
-  // someRandomBytes[9] = 0X0E;
-  // llwrite(someRandomBytes, 10);
 
   // END -> Construct
   off_t endPackageSize = 0;

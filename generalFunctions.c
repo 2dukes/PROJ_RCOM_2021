@@ -1,6 +1,5 @@
 #include "headers/generalFunctions.h"
 
-
 // C Campo de Controlo
 // SET (set up)                         0 0 0 0 0 0 1 1
 // DISC (disconnect)                    0 0 0 0 1 0 1 1
@@ -76,15 +75,13 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd, unsi
   int returnState = 1;
 
   while (strcmp(state[i], "STOP") != 0) {       /* loop for input */
-    // printf("\nSTATE: %s\n", state[i]);
+
     res = read(fd, &byte, 1);   /* returns after 1 chars have been input */
     
     if(withTimeout) {
       if(res < 0)  // Read interrupted by a signal
         continue; // Jumps to another iteration
     }
-    
-    // printf("%p\n", byte);
     
     if(byte == (aField ^ cField)) { // BCC1
       if(strcmp(state[i], "C_RCV") == 0) {
@@ -122,7 +119,6 @@ int receiveSupervisionTrama(bool withTimeout, unsigned char cField, int fd, unsi
           i = 1; // STATE = FLAG_RCV
         break;      
       default: // Other_RCV
-        // printf("%p | %p | %p\n", byte, (A_C_SET ^ cField), cField);
         i = 0; // STATE = START
     }
   }
@@ -138,9 +134,7 @@ void sendSupervisionTrama(int fd, unsigned char cField, unsigned char aField) {
     buf[3] = aField ^ cField;
     buf[4] = FLAG_SET;
 
-    // printf("-%d-\n", sizeof(buf));
     write(fd, buf, sizeof(buf));   
-    // printf("%d bytes written\n", res);
 }
 
 void checkMaxBytesToSend(off_t* packageSize) {

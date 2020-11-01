@@ -16,20 +16,13 @@ struct readReturn deStuffing(unsigned char * message, int size) {
   for(int i = 0; i < size; i++) {
     dataBytes = (unsigned char*) realloc(dataBytes, currentMessageSize + 1);
 
-    // receiveMessage = (unsigned char*) realloc(receiveMessage, *receiveMessageSize + 1);
-
-    // printf("message[%d] = %p\n", i, message[i]);
     if(message[i] == ESC) {
       if(i + 1 < size) {
         if(message[i+1] == ESC_XOR1) {
           dataBytes[currentMessageSize++] = FLAG_SET;
-          // receiveMessage[(*receiveMessageSize)++] = FLAG_SET;
-          // printf("receiveMessage[%d] = %p\n", *receiveMessageSize - 1, receiveMessage[*receiveMessageSize - 1]);
           i++;
         } else if(message[i+1] == ESC_XOR2) {
           dataBytes[currentMessageSize++] = ESC;
-          // receiveMessage[(*receiveMessageSize)++] = ESC;
-          // printf("receiveMessage[%d] = %p\n", *receiveMessageSize - 1, receiveMessage[*receiveMessageSize - 1]);
           i++;
         }
       } else {
@@ -45,14 +38,10 @@ struct readReturn deStuffing(unsigned char * message, int size) {
       return returnStruct;  
     } else {
       dataBytes[currentMessageSize++] = message[i];
-      // receiveMessage[(*receiveMessageSize)++] = message[i];
-      // printf("receiveMessage[%d] = %p\n", *receiveMessageSize - 1, receiveMessage[*receiveMessageSize - 1]);
     }
     
-    // printf("dataBytes[%d] = %p\n", currentMessageSize - 1, dataBytes[currentMessageSize - 1]);
   }
 
-  // (*receiveMessageSize)--; // To Exclude BCC2
   memset(message, 0, size); // Clear array
   memcpy(message, dataBytes, currentMessageSize); // Substitute original array with destuffed content
 
@@ -75,9 +64,9 @@ struct receiveTramaReturn receiveTrama(int* nTrama, int fd) {
   int index = 0;
 
   while (strcmp(state[i], "STOP") != 0) {       /* loop for input */
-    // printf("\nSTATE (R): %s\n", state[i]);
+
     read(fd, &buf, 1);   /* returns after 1 chars have been input */
-    // printf("%p\n", buf);
+
 
     // Special cases (as they use dynamic fields)
     if(buf == (A_C_SET ^ C_I(*nTrama)) || buf == (A_C_SET ^ C_I(!(*nTrama)))) { // BCC1
@@ -185,15 +174,13 @@ void llopen(int fd, struct termios* oldtio, struct termios* newtio) {
 }
 
 bool checkEnd(unsigned char* endMessage, off_t endMessageSize) {
-  int s = 1;
-  int e = 1;
   if (startMessageSize != endMessageSize)
     return FALSE;
   else {
     if (endMessage[0] == C_END) {
-      for (; s < startMessageSize; s++, e++)
+      for (int i = 1; i < startMessageSize; i++)
       {
-        if (startMessage[s] != endMessage[e])
+        if (startMessage[i] != endMessage[i])
           return FALSE;
       }
       return TRUE;
@@ -228,9 +215,6 @@ struct readReturn llread(int fd, int* tNumber) {
     }
   }
 
-  // for(int i = 0; i < currentMessageSize; i++) {
-  //     printf("currentMessage[%d] = %p\n", i, currentMessage[i]);
-  // }
   struct readReturn llreadRet;
   llreadRet.currentMessage = receiveRet.currentMessage;
   llreadRet.currentMessageSize = receiveRet.currentMessageSize - 1; // Exclude BCC2

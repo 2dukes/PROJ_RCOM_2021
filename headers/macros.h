@@ -34,9 +34,8 @@
 #define C_END 0x03
 #define T1 0x00
 #define T2 0x01
-#define L1 0x04 // Fixed for pinguim.gif -> 10968 -> 2 OCTETOS
+#define L1 0x04
 
 #define MAX_NUM_OCTETS 65536 // 2^16
 
 #define MIN(a, b) ( (a < b) ? a : b)
-// #define L2 0x0B // pinguim.gif -> 11 chars -> 11 OCTETOS

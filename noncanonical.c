@@ -75,14 +75,14 @@ struct receiveTramaReturn receiveTrama(int* nTrama, int fd) {
         continue;
       }
     }
-    else if(buf == C_I(0)) { // C -> Determined in run-time
+    else if(buf == C_I(0)) { // C 
       if(strcmp(state[i], "A_RCV") == 0) {
         cFlag = 0; 
         i++;
         continue;
       }
     }
-    else if(buf == C_I(1)) { // C -> Determined in run-time
+    else if(buf == C_I(1)) { // C 
       if(strcmp(state[i], "A_RCV") == 0) {
         cFlag = 1;
         i++;
@@ -135,7 +135,7 @@ struct receiveTramaReturn receiveTrama(int* nTrama, int fd) {
     return receiveTramaRet; // PEDIR RETRANSMISSÃO (REJ)
   }
   
-  // At this point dataBytes[index - 1] holds BCC2
+  // At this point dataBytes[currentMessageSize - 1] holds BCC2
   unsigned char bcc2 = computeBcc2(deStuffingRet.currentMessage, deStuffingRet.currentMessageSize - 1, 0); // Excluding BCC2
   free(dataBytes);
   
@@ -195,7 +195,6 @@ struct readReturn llread(int fd, int* tNumber) {
 
   struct receiveTramaReturn receiveRet;
   while(true) {
-    // VALORES DE C são gerados consoante recebidos! CORRIGIR
     receiveRet = receiveTrama(tNumber, fd);
     if(receiveRet.statusCode == 0) {
       printf("\nReceived Trama with success!\n \nSendign RR (%d)\n", !(*tNumber));

@@ -27,7 +27,7 @@
 #define ESC_XOR2 0x5D
 
 #define DATA_HEADER_LEN 4
-#define MODULE 255
+#define MODULE 256
 
 #define C_DATA 0x01
 #define C_START 0x02

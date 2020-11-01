@@ -202,7 +202,7 @@ unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSi
   int8_t sequenceNum = 0;
 
   for(off_t i = 0; i < *messageSize; i++) {
-    if(i == auxBytesToSend) { // Each packet has 128 bytes of Info
+    if(i == auxBytesToSend) { // Each packet has N_BYTES_TO_SEND bytes of Info
       totalMessage = (unsigned char *) realloc(totalMessage, *totalMessageSize + DATA_HEADER_LEN);
       totalMessage[(*totalMessageSize)++] = C_DATA;                       // C
       totalMessage[(*totalMessageSize)++] = sequenceNum;                  // N
@@ -210,7 +210,7 @@ unsigned char* encapsulateMessage(unsigned char* messageToSend, off_t* messageSi
       totalMessage[(*totalMessageSize)++] = (aux >> 8) & 0xFF; // L2
       totalMessage[(*totalMessageSize)++] = (aux) & 0xFF;      // L1
 
-      sequenceNum = (sequenceNum + 1) % MODULE; // [0 - 254]
+      sequenceNum = (sequenceNum + 1) % MODULE; // [0 - 255]
       auxBytesToSend += aux;
       (*numPackets)++;
     }  

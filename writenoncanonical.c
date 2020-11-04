@@ -10,7 +10,7 @@ bool readSuccessful = false;
 int fd;
 
 unsigned char toSend[N_BYTES_FLAGS + (N_BYTES_TO_SEND * 2)]; // Buffer da mensagem a enviar
-int nBytesRead;
+int finalIndex;
 
 void setHandler(int sigNum) {
 
@@ -51,7 +51,8 @@ void resendTrama(int sigNum) {
       return;
     
     printf("\nSending Trama: Retry %d\n", numRetries);
-    write(fd, toSend, N_BYTES_FLAGS + nBytesRead);
+    write(fd, toSend, finalIndex + 1);
+
     alarm(TIMEOUT);
     numRetries++;
   }
@@ -105,10 +106,39 @@ void llopen(struct termios* oldtio, struct termios* newtio) {
 
 }
 
+void varyBCC1_BCC2(unsigned char* message, int messageSize, bool* nTrama) {
+  if(ERROR_MODE == 2) {
+    unsigned char *copyToSend = (unsigned char *) malloc (messageSize);
+    memcpy(copyToSend, message, messageSize);
+    // BCC2
+    int r = (rand() % 100) + 1;
+    if(r <= BCC2_ERROR_PERCENTAGE) {
+      int i = (rand() % (messageSize - 5)) + 4; // We don't want to change the FLAG
+      unsigned char randomLetter = (unsigned char) ('A' + (rand() % 26));
+      copyToSend[i] = randomLetter;
+      printf("\n-- BCC2 Changed! --\n");
+    }
+
+    // BCC1
+    r = (rand() % 100) + 1;
+    if(r <= BCC1_ERROR_PERCENTAGE) {
+      int i = (rand() % 3) + 1;
+      unsigned char randomLetter = (unsigned char) ('A' + (rand() % 26));
+      copyToSend[i] = randomLetter;
+      printf("\n-- BCC1 Changed! --\n");
+    }
+
+    printf("\nSENT TRAMA (%d)!\n", *nTrama);
+    write(fd, copyToSend, messageSize);
+    free(copyToSend);
+  }
+}
+
 void llwrite(unsigned char *buf, off_t size, bool* nTrama) {
     int i = 0;
     int j;
     int nTramasSent = 0;
+    int nBytesRead = 0;
 
     while(i < size) {
       j = 4;
@@ -128,24 +158,30 @@ void llwrite(unsigned char *buf, off_t size, bool* nTrama) {
       }   
       
       toSend[j] = computeBcc2(buf, nBytesRead, nTramasSent * N_BYTES_TO_SEND);      
-      int finalIndex = byteStuffing(toSend, nBytesRead + 1); // +1 because of BCC2    
+      finalIndex = byteStuffing(toSend, nBytesRead + 1); // +1 because of BCC2    
       toSend[finalIndex] = FLAG_SET;
 
-      printf("\nSENT TRAMA (%d)!\n", *nTrama);
-      write(fd, toSend, finalIndex + 1);
+      if(ERROR_MODE == 2)
+        varyBCC1_BCC2(toSend, finalIndex + 1, nTrama);
+      else {
+        printf("\nSENT TRAMA (%d)!\n", *nTrama);
+        write(fd, toSend, finalIndex + 1);
+      };
       
       readSuccessful = false;
-      printf("\nReceiving RR / REJ\n");
       int returnState = receiveSupervisionTrama(true, getCField("RR", !(*nTrama)), fd, A_C_SET); // [Nr = 0 | 1]
       readSuccessful = true;
       numRetries = 0;
 
       if(returnState == 1) {
+        printf("\nReceiving RR\n");
         nTramasSent++;
         *nTrama = !(*nTrama);   
       }
-      else if(returnState == 2) // Retransmissão da última trama enviada
+      else if(returnState == 2) { // Retransmissão da última trama enviada
+        printf("\nReceiving REJ\n");
         i -= nBytesRead;
+      }
     }
 }
 
@@ -238,6 +274,7 @@ void llclose() {
 
 int main(int argc, char** argv)
 {
+  srand(time(NULL));
   (void) signal(SIGALRM, setHandler);
   bool nTrama = false; // [Ns = 0 | 1]
 
@@ -255,6 +292,9 @@ int main(int argc, char** argv)
 
   off_t fileSize;
   unsigned char *msg = openReadFile(argv[2], &fileSize);
+
+  struct timespec startTime;
+  clock_gettime(CLOCK_REALTIME, &startTime);
 
   llopen(&oldtio, &newtio);
   
@@ -302,6 +342,12 @@ int main(int argc, char** argv)
     perror("tcsetattr");
     exit(-1);
   }
+  struct timespec endTime;
+  clock_gettime(CLOCK_REALTIME, &endTime);
+  double sTime = startTime.tv_sec + startTime.tv_nsec * 1e-9;
+  double eTime = endTime.tv_sec + endTime.tv_nsec * 1e-9;
+  printf("-Time Passed: %.6lf-\n", eTime - sTime);
+
   close(fd);
   return 0;
 }

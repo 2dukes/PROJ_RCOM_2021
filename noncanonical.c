@@ -52,7 +52,19 @@ struct readReturn deStuffing(unsigned char * message, int size) {
   return returnStruct;
 }
 
+void varyT_prop() {
+  if(ERROR_MODE == 1) { // Vary T_Prop
+    int r = (rand() % 100) + 1;
+    if(r <= T_PROP_ERROR_PERCENTAGE) {
+      sleep(1);
+      printf("\nT_Prop changed!\n");
+    }
+  }
+}
+
 struct receiveTramaReturn receiveTrama(int* nTrama, int fd) {
+  varyT_prop();
+
   unsigned char buf;
   char state[6][25] = { "START", "FLAG_RCV", "A_RCV", "C_RCV", "BCC1_OK", "STOP" };
   int i = 0;
@@ -64,10 +76,9 @@ struct receiveTramaReturn receiveTrama(int* nTrama, int fd) {
   int index = 0;
 
   while (strcmp(state[i], "STOP") != 0) {       /* loop for input */
-
+    
     read(fd, &buf, 1);   /* returns after 1 chars have been input */
-
-
+    
     // Special cases (as they use dynamic fields)
     if(buf == (A_C_SET ^ C_I(*nTrama)) || buf == (A_C_SET ^ C_I(!(*nTrama)))) { // BCC1
       if(strcmp(state[i], "C_RCV") == 0) {
@@ -260,6 +271,7 @@ void llclose(int fd) {
 
 int main(int argc, char** argv)
 {
+  // srand(time(NULL));
   int fd;
   struct termios oldtio,newtio;
   int tNumber = -1; // [Nr = 0 | 1]

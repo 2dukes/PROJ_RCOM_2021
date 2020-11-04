@@ -39,3 +39,12 @@
 #define MAX_NUM_OCTETS 65536 // 2^16
 
 #define MIN(a, b) ( (a < b) ? a : b)
+
+#define ERROR_MODE 2
+// ERROR_MODE:
+//      1. Vary T_prop
+//      2. Vary FER
+
+#define BCC2_ERROR_PERCENTAGE 5
+#define BCC1_ERROR_PERCENTAGE 5
+#define T_PROP_ERROR_PERCENTAGE 5

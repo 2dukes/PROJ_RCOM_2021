@@ -11,7 +11,6 @@
 #include <stdbool.h>
 #include <math.h>
 
-#include "macros.h"
 #include "generalFunctions.h"
 
 /*-------------------------- Data Link Layer --------------------------*/

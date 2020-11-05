@@ -12,7 +12,6 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 
-#include "macros.h"
 #include "generalFunctions.h"
 
 /*-------------------------- Data Link Layer --------------------------*/

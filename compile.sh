@@ -1,2 +1,2 @@
-gcc reader.c generalFunctions.c -o nC
-gcc writer.c generalFunctions.c -o writeNC
+gcc -Wall reader.c generalFunctions.c -o reader
+gcc -Wall writer.c generalFunctions.c -o writer

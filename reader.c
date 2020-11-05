@@ -1,6 +1,6 @@
 /*Non-Canonical Input Processing*/
 
-#include "headers/noncanonical.h"
+#include "headers/reader.h"
 
 struct readReturn deStuffing(unsigned char * message, int size) {
   int currentMessageSize = 0;

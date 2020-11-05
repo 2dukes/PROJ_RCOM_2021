@@ -1,6 +1,6 @@
 /*Non-Canonical Input Processing*/
 
-#include "headers/writenoncanonical.h"
+#include "headers/writer.h"
 
 int numRetries = 0;
 

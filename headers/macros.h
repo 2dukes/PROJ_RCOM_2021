@@ -40,8 +40,9 @@
 
 #define MIN(a, b) ( (a < b) ? a : b)
 
-#define ERROR_MODE 2
+#define ERROR_MODE 0
 // ERROR_MODE:
+//      0. Non Error Mode
 //      1. Vary T_prop
 //      2. Vary FER
 

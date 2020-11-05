@@ -52,7 +52,7 @@ void llclose(int fd);
 * Verifica se é a última mensagem.
 * Application Layer
 */
-bool checkEnd(unsigned char* endMessage, off_t endMessageSize);
+bool checkEnd(unsigned char* endMessage, off_t endMessageSize, unsigned char* startMessage, off_t startMessageSize);
 
 /*
 * Obtém o tamanho do ficheiro a partir da trama START.

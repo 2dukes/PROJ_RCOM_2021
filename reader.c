@@ -2,11 +2,6 @@
 
 #include "headers/noncanonical.h"
 
-volatile int STOP=FALSE;
-
-unsigned char* startMessage;
-off_t startMessageSize;
-
 struct readReturn deStuffing(unsigned char * message, int size) {
   int currentMessageSize = 0;
   unsigned char* dataBytes = (unsigned char*) malloc(0);
@@ -184,7 +179,7 @@ void llopen(int fd, struct termios* oldtio, struct termios* newtio) {
 
 }
 
-bool checkEnd(unsigned char* endMessage, off_t endMessageSize) {
+bool checkEnd(unsigned char* endMessage, off_t endMessageSize, unsigned char* startMessage, off_t startMessageSize) {
   if (startMessageSize != endMessageSize)
     return FALSE;
   else {
@@ -292,8 +287,8 @@ int main(int argc, char** argv)
   struct readReturn startRet;
 
   startRet = llread(fd, &tNumber); // Only 1 Frame
-  startMessage = startRet.currentMessage;
-  startMessageSize = startRet.currentMessageSize;
+  unsigned char* startMessage = startRet.currentMessage;
+  off_t startMessageSize = startRet.currentMessageSize;
 
   printf("\n-- RECEIVED START --\n");
 
@@ -313,7 +308,7 @@ int main(int argc, char** argv)
 
   while(true) {
     messageRet = llread(fd, &tNumber);
-    if(checkEnd(messageRet.currentMessage, messageRet.currentMessageSize)) {
+    if(checkEnd(messageRet.currentMessage, messageRet.currentMessageSize, startMessage, startMessageSize)) {
       printf("\n-- RECEIVED END --\n");
       break;
     }

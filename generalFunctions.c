@@ -36,6 +36,7 @@ void configureSerialPort(int fd, struct termios* oldtio, struct termios* newtio)
     exit(-1);
   }
 
+
   bzero(newtio, sizeof(*newtio));
   newtio->c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
   newtio->c_iflag = IGNPAR;
@@ -53,6 +54,8 @@ void configureSerialPort(int fd, struct termios* oldtio, struct termios* newtio)
   */
 
   tcflush(fd, TCIOFLUSH);
+
+  printf("New termios structure set\n");
 
   if ( tcsetattr(fd,TCSANOW,newtio) == -1) {
     perror("tcsetattr");

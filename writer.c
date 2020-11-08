@@ -332,6 +332,12 @@ int main(int argc, char** argv)
 
   llclose();
 
+  struct timespec endTime;
+  clock_gettime(CLOCK_REALTIME, &endTime);
+  double sTime = startTime.tv_sec + startTime.tv_nsec * 1e-9;
+  double eTime = endTime.tv_sec + endTime.tv_nsec * 1e-9;
+  printf("-Time Passed: %.6lf-\n", eTime - sTime);
+
   printf("\nEND!\n");
 
   sleep(1); 
@@ -340,11 +346,6 @@ int main(int argc, char** argv)
     perror("tcsetattr");
     exit(-1);
   }
-  struct timespec endTime;
-  clock_gettime(CLOCK_REALTIME, &endTime);
-  double sTime = startTime.tv_sec + startTime.tv_nsec * 1e-9;
-  double eTime = endTime.tv_sec + endTime.tv_nsec * 1e-9;
-  printf("-Time Passed: %.6lf-\n", eTime - sTime);
 
   close(fd);
   return 0;

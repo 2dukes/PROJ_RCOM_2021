@@ -40,12 +40,12 @@
 
 #define MIN(a, b) ( (a < b) ? a : b)
 
-#define ERROR_MODE 0
+#define ERROR_MODE 2
 // ERROR_MODE:
 //      0. Non Error Mode
 //      1. Vary T_prop
 //      2. Vary FER
 
-#define BCC2_ERROR_PERCENTAGE 5
-#define BCC1_ERROR_PERCENTAGE 5
+#define BCC2_ERROR_PERCENTAGE 0
+#define BCC1_ERROR_PERCENTAGE 0
 #define T_PROP_ERROR_PERCENTAGE 5

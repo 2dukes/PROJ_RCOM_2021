@@ -16,48 +16,77 @@
 #define SERVER_ADDR "192.168.28.96"
 #define MAX_STRING_LENGTH 64
 
-void parseArguments(char* argv, char* user, char* password, char* host, char* urlPath) {
-	// User
-	printf("%s\n", argv);
-	char* colon = strchr(&argv[4], ':');
-	int colonIndex = colon - argv;
-	memcpy(user, &argv[6], colonIndex - 6);
-	user[colonIndex - 6] = '\0';
-	printf("User: %s\n", user);
+#define DEFAULT_USER "anonymous"
+#define DEFAULT_PASSWORD "123"
+#define URL_HEADER_LEN 6
 
-	// Password
+void errorMessage(char* message, int statusCode) {
+	printf("Usage: ./client ftp://[<user>:<password>@]<host>/<url-path>\n");
+	exit(statusCode);
+}
+
+void parseArguments(char* argv, char* user, char* password, char* host, char* urlPath) {
+	int atIndex;
+
+	char* colon = strchr(&argv[4], ':');
 	char* at = strchr(argv, '@');
-	int atIndex = at - argv;
-	memcpy(password, &argv[colonIndex + 1], atIndex - (colonIndex + 1));
-	password[atIndex - (colonIndex + 1)] = '\0';
-	printf("Password: %s\n", password);
+	char* hostSlash = strchr(&argv[URL_HEADER_LEN], '/');
+	char* urlPathSlash = strchr(&argv[URL_HEADER_LEN], '/') + 1;
+	
+	if(colon != NULL && at != NULL) {
+		if(colon >= at)
+			errorMessage("Usage: ./client ftp://[<user>:<password>@]<host>/<url-path>\n", 1);
+
+		// User
+		int colonIndex = colon - argv;
+		memcpy(user, &argv[URL_HEADER_LEN], colonIndex - URL_HEADER_LEN);
+		user[colonIndex - URL_HEADER_LEN] = '\0';
+
+		// Password
+		atIndex = at - argv;
+		memcpy(password, &argv[colonIndex + 1], atIndex - (colonIndex + 1));
+		password[atIndex - (colonIndex + 1)] = '\0';
+	}
+	else {
+		strcpy(user, DEFAULT_USER);
+		strcpy(password, DEFAULT_PASSWORD);
+		atIndex = 5;
+	}
+
+	char* header;
+	strncpy(header, argv, URL_HEADER_LEN);
+	if(hostSlash == NULL || urlPathSlash == NULL || strcmp(header, "ftp://") != 0) 
+		errorMessage("Usage: ./client ftp://[<user>:<password>@]<host>/<url-path>\n", 1);
 
 	// Host
-	char* hostSlash = strchr(&argv[6], '/');
 	int slashIndex = hostSlash - argv;
 	memcpy(host, &argv[atIndex + 1], slashIndex - (atIndex + 1));
 	host[slashIndex - (atIndex + 1)] = '\0';
-	printf("Host: %s\n", host);
 
 	// url-path
-	char* urlPathSlash = strchr(&argv[6], '/') + 1;
 	int pathIndex = urlPathSlash - argv;
 	int urlPathLen = strlen(argv) - pathIndex ;
 	memcpy(urlPath, &argv[slashIndex + 1], urlPathLen);
 	urlPath[urlPathLen] = '\0';
-	printf("Url Path: %s\n", urlPath);
 }
 
 int main(int argc, char** argv){
 	// ftp://[<user>:<password>@]<host>/<url-path>
+	// ftp://ftp.up.pt/pub/README.html
+	// ftp://up201806441:123@ftp.up.pt/pub/README.html
 
 	char user[MAX_STRING_LENGTH];
 	char password[MAX_STRING_LENGTH];
 	char host[MAX_STRING_LENGTH]; 
 	char urlPath[MAX_STRING_LENGTH];
-
-	// url-path
 	parseArguments(argv[1], user, password, host, urlPath);
+
+	printf("%s\n", argv[1]);
+	printf("User: %s\n", user);
+	printf("Password: %s\n", password);
+	printf("Host: %s\n", host);
+	printf("Url Path: %s\n", urlPath);
+
 	exit(1);
 
 	int	sockfd;

@@ -140,9 +140,10 @@ int main(int argc, char** argv) {
 			char sa_data[14]; // Protocol address
 		};
 	*/
+
 	bzero((char*)&server_addr,sizeof(server_addr));
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_addr.s_addr = inet_addr(inet_ntoa(*((struct in_addr *)hostInfo->h_addr)));	/*32 bit Internet address network byte ordered*/
+	server_addr.sin_addr.s_addr = ((struct in_addr *)hostInfo->h_addr)->s_addr;	/*32 bit Internet address network byte ordered*/
 	server_addr.sin_port = htons(SERVER_PORT);		/*server TCP port must be network byte ordered */
     
 	/*open an TCP socket*/

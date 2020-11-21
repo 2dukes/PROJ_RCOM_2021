@@ -11,3 +11,5 @@ struct FTPclientArgs {
     char* host;
     char* urlPath;
 };
+
+enum readState { StatusCode, Space, Dash, LineChange, DummyMsgText, MainMsgText, EndMessage};

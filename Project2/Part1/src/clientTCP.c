@@ -12,6 +12,8 @@
 #include "macros.h"
 #include <string.h>
 #include <fcntl.h>
+#include <stdbool.h>
+#include <ctype.h>
 
 
 void errorMessage(char* message, int statusCode) {
@@ -73,7 +75,7 @@ struct FTPclientArgs parseArguments(char* argv) {
 struct hostent* getIP(char* hostName)
 {
 	struct hostent* h = (struct hostent *) malloc(sizeof(struct hostent));
-					
+
 	/*
 	struct hostent {
 		char    *h_name;	Official name of the host. 
@@ -97,9 +99,60 @@ struct hostent* getIP(char* hostName)
 	return h;
 }
 
+enum readState getState(char character, enum readState previousState) {
+	if(isdigit(character) && (previousState == LineChange || previousState == StatusCode))
+		return StatusCode;
+	else if(character == '\n') {
+		if(previousState == Space || previousState == MainMsgText) 
+			return EndMessage;
+		return LineChange;
+	}
+	else if(character == ' ') {
+		if(previousState == StatusCode)
+			return Space;
+		if(previousState == MainMsgText)
+			return MainMsgText;	
+		return DummyMsgText;
+	}
+	else if(character == '-')
+		return Dash;
+	else {
+		if(previousState == Space || previousState == MainMsgText)
+			return MainMsgText;
+		return DummyMsgText;
+	}
+}
+
 void readResponse(int sockfd, char* statusCode) {
+	enum readState rStatus = LineChange;
+	// enum readState { StatusCode, Space, Dash, LineChange, DummyMsgText, MainMsgText, EndMessage};
+	char c;
+	int statusCodeIndex = 0, msgIndex = 0;
+	char* message = (char *) malloc(0);
 
+	while(rStatus != EndMessage) {
+		read(sockfd, &c, 1);
+		rStatus = getState(c, rStatus);
+		// printf("%c | %d\n", c, rStatus);
+		
+		switch (rStatus)
+		{
+			case StatusCode:
+				statusCode[statusCodeIndex++] = c; 
+				break;
+			case LineChange:
+				statusCodeIndex = 0;
+				break;
+			case MainMsgText:
+				message = (char* ) realloc(message, msgIndex + 1);
+				message[msgIndex++] = c;
+			default:
+				break;
+		}
+	}
 
+	printf("Status Code: %s\n", statusCode);
+	printf("Main Message: %s\n", message);
 }
 // https://stackoverflow.com/questions/29152359/how-to-read-multiline-response-from-ftp-server
 int main(int argc, char** argv) {
@@ -145,7 +198,7 @@ int main(int argc, char** argv) {
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = ((struct in_addr *)hostInfo->h_addr)->s_addr;	/*32 bit Internet address network byte ordered*/
 	server_addr.sin_port = htons(SERVER_PORT);		/*server TCP port must be network byte ordered */
-    
+    	
 	/*open an TCP socket*/
 	if ((sockfd = socket(AF_INET,SOCK_STREAM,0)) < 0) 
 		errorMessage("socket() failed.", 2);
@@ -158,13 +211,17 @@ int main(int argc, char** argv) {
 	char statusCode[4];
 	readResponse(sockfd, statusCode);
 
-	char buf[2];
-	while(1) {
-		bytes = read(sockfd, buf, 1);
-		printf("%c | %d\n", buf[0], buf[0]);
-	}
-	
-	free(hostInfo);
+	bytes = write(sockfd, "123\n", 4);
+	readResponse(sockfd, statusCode);
+	// char buf[2];
+	// while(1) {
+	// 	bytes = read(sockfd, buf, 1);
+	// 	printf("%c | %d\n", buf[0], buf[0]);
+	// }
+
+
+
+	// free((void *) hostInfo);
 	free(clientArgs.user);
 	free(clientArgs.password);
 	free(clientArgs.host);

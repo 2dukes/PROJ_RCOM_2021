@@ -123,6 +123,7 @@ enum readState getState(char character, enum readState previousState) {
 	}
 }
 
+// https://stackoverflow.com/questions/29152359/how-to-read-multiline-response-from-ftp-server
 char* readResponse(int sockfd, char* statusCode) {
 	enum readState rStatus = LineChange;
 	// enum readState { StatusCode, Space, Dash, LineChange, DummyMsgText, MainMsgText, EndMessage};
@@ -155,7 +156,19 @@ char* readResponse(int sockfd, char* statusCode) {
 	printf("Main Message: %s\n", message);
 	return message;
 }
-// https://stackoverflow.com/questions/29152359/how-to-read-multiline-response-from-ftp-server
+
+// https://en.wikipedia.org/wiki/List_of_FTP_server_return_codes
+int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD) {
+	write(sockfd, mainCMD, strlen(mainCMD));
+	write(sockfd, contentCMD, strlen(contentCMD));
+	write(sockfd, "\n", 1);
+	
+	char statusCode[4];
+	readResponse(sockfd, statusCode);
+
+	return 0;
+}
+
 int main(int argc, char** argv) {
 	// ftp://[<user>:<password>@]<host>/<url-path>
 	// ftp://ftp.up.pt/pub/README.html
@@ -208,29 +221,28 @@ int main(int argc, char** argv) {
     if(connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
 		errorMessage("connect() failed.", 3);
     
-	/*send a string to the server*/
+	/* Read Server Welcoming message */
 	char statusCode[4];
 	char* response = readResponse(sockfd, statusCode);
-	if(statusCode[0] != '2') {
-		char errorMsg[50];
-		sprintf(errorMsg, "Status [%s] : %s\n", statusCode, response);
-		errorMessage(errorMsg, 4);
-	}
-
-	bytes = write(sockfd, "123\n", 4);
-	response = readResponse(sockfd, statusCode);
 
 	if(statusCode[0] != '2') {
 		char errorMsg[50];
 		sprintf(errorMsg, "Status [%s] : %s\n", statusCode, response);
 		errorMessage(errorMsg, 4);
-	}
-	// char buf[2];
-	// while(1) {
-	// 	bytes = read(sockfd, buf, 1);
-	// 	printf("%c | %d\n", buf[0], buf[0]);
+	} else
+		printf("> Connection Established  [%s:%d]\n", clientArgs.host, SERVER_PORT);
+
+	free(response);
+	sendCommandAndFetchResponse(sockfd, "USER ", clientArgs.user);
+
+	// bytes = write(sockfd, "123\n", 4);
+	// response = readResponse(sockfd, statusCode);
+
+	// if(statusCode[0] != '2') {
+	// 	char errorMsg[50];
+	// 	sprintf(errorMsg, "Status [%s] : %s\n", statusCode, response);
+	// 	errorMessage(errorMsg, 4);
 	// }
-
 
 
 	// free((void *) hostInfo);

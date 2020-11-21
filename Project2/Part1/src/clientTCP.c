@@ -163,10 +163,43 @@ int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD) {
 	write(sockfd, contentCMD, strlen(contentCMD));
 	write(sockfd, "\n", 1);
 	
-	char statusCode[4];
-	readResponse(sockfd, statusCode);
+	while(true) {
+		char statusCode[4];
+		char* response = readResponse(sockfd, statusCode);
+		switch (statusCode[0])
+		{
+			// Expect Another Reply
+			case '1':
+				break;
 
-	return 0;
+			// Request Completed.
+			case '2':
+				return 2;
+				break;
+			
+			// Needs further information (Login Case)
+			case '3':
+				return 3;
+				break;
+			
+			// Command not accepted, but we can send it again.
+			case '4':
+				write(sockfd, mainCMD, strlen(mainCMD));
+				write(sockfd, contentCMD, strlen(contentCMD));
+				write(sockfd, "\n", 1);
+				break;
+
+			// Command had errors!
+			case '5': {
+				char errorMsg[50];
+				sprintf(errorMsg, "Status [%s] : %s\n", statusCode, response);
+				errorMessage(errorMsg, 5);
+				break;
+			}
+			default: 
+				break;
+		}
+	}
 }
 
 int main(int argc, char** argv) {

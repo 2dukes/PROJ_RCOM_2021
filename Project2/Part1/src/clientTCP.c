@@ -75,7 +75,9 @@ struct FTPclientArgs parseArguments(char* argv) {
 	clientArgs.filename = (char *) malloc(strlen(argv) - filenameSlashIndex);
 	memcpy(clientArgs.filename, &argv[filenameSlashIndex + 1], strlen(argv) - filenameSlashIndex - 1); 
 	
-	if(strcmp(clientArgs.filename, "") == 0)
+	if(strcmp(clientArgs.user, "") == 0 || strcmp(clientArgs.password, "") == 0 || 
+		strcmp(clientArgs.host, "") == 0 || strcmp(clientArgs.urlPath, "") == 0 || 
+		strcmp(clientArgs.filename, "") == 0)
 		errorMessage("Usage: ./client ftp://[<user>:<password>@]<host>/<url-path>\n", 1);
 
 	return clientArgs;
@@ -208,22 +210,7 @@ int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD) {
 	}
 }
 
-int main(int argc, char** argv) {
-	// ftp://[<user>:<password>@]<host>/<url-path>
-	// ftp://ftp.up.pt/pub/README.html
-	// ftp://up201806441:123@ftp.up.pt/pub/README.html
-
-	struct FTPclientArgs clientArgs = parseArguments(argv[1]);
-
-	printf("%s\n", argv[1]);
-	printf("User: %s\n", clientArgs.user);
-	printf("Password: %s\n", clientArgs.password);
-	printf("Host: %s\n", clientArgs.host);
-	printf("Url Path: %s\n", clientArgs.urlPath);
-	printf("Filename: %s\n", clientArgs.filename);
-
-	struct hostent* hostInfo = getIP(clientArgs.host);
-
+int openSocketAndConnect(struct hostent* hostInfo) {
 	int	sockfd;
 	struct sockaddr_in server_addr;
 	int	bytes;
@@ -259,7 +246,29 @@ int main(int argc, char** argv) {
 	/*connect to the server*/
     if(connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
 		errorMessage("connect() failed.", 3);
-    
+	
+	return sockfd;
+}
+
+int main(int argc, char** argv) {
+	// ftp://[<user>:<password>@]<host>/<url-path>
+	// ftp://ftp.up.pt/pub/README.html
+	// ftp://up201806441:123@ftp.up.pt/pub/README.html
+
+	struct FTPclientArgs clientArgs = parseArguments(argv[1]);
+
+	printf("\n\n%s\n", argv[1]);
+	printf("-----------------------------------------------\n");
+	printf("User: %s\n", clientArgs.user);
+	printf("Password: %s\n", clientArgs.password);
+	printf("Host: %s\n", clientArgs.host);
+	printf("Url Path: %s\n", clientArgs.urlPath);
+	printf("Filename: %s\n", clientArgs.filename);
+
+	struct hostent* hostInfo = getIP(clientArgs.host);
+	printf("-----------------------------------------------\n\n");
+	int sockfd = openSocketAndConnect(hostInfo);
+
 	/* Read Server Welcoming message */
 	char statusCode[4];
 	char* response = readResponse(sockfd, statusCode);

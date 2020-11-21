@@ -16,8 +16,8 @@
 #include <ctype.h>
 
 
-void errorMessage(char* message, int statusCode) {
-	printf("Usage: ./client ftp://[<user>:<password>@]<host>/<url-path>\n");
+void errorMessage(char* error, int statusCode) {
+	printf(error);
 	exit(statusCode);
 }
 
@@ -123,7 +123,7 @@ enum readState getState(char character, enum readState previousState) {
 	}
 }
 
-void readResponse(int sockfd, char* statusCode) {
+char* readResponse(int sockfd, char* statusCode) {
 	enum readState rStatus = LineChange;
 	// enum readState { StatusCode, Space, Dash, LineChange, DummyMsgText, MainMsgText, EndMessage};
 	char c;
@@ -153,6 +153,7 @@ void readResponse(int sockfd, char* statusCode) {
 
 	printf("Status Code: %s\n", statusCode);
 	printf("Main Message: %s\n", message);
+	return message;
 }
 // https://stackoverflow.com/questions/29152359/how-to-read-multiline-response-from-ftp-server
 int main(int argc, char** argv) {
@@ -209,10 +210,21 @@ int main(int argc, char** argv) {
     
 	/*send a string to the server*/
 	char statusCode[4];
-	readResponse(sockfd, statusCode);
+	char* response = readResponse(sockfd, statusCode);
+	if(statusCode[0] != '2') {
+		char errorMsg[50];
+		sprintf(errorMsg, "Status [%s] : %s\n", statusCode, response);
+		errorMessage(errorMsg, 4);
+	}
 
 	bytes = write(sockfd, "123\n", 4);
-	readResponse(sockfd, statusCode);
+	response = readResponse(sockfd, statusCode);
+
+	if(statusCode[0] != '2') {
+		char errorMsg[50];
+		sprintf(errorMsg, "Status [%s] : %s\n", statusCode, response);
+		errorMessage(errorMsg, 4);
+	}
 	// char buf[2];
 	// while(1) {
 	// 	bytes = read(sockfd, buf, 1);

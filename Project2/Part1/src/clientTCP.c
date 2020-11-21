@@ -163,16 +163,24 @@ char* readResponse(int sockfd, char* statusCode) {
 		}
 	}
 
-	printf("Status Code: %s\n", statusCode);
-	printf("Main Message: %s\n", message);
+	// printf("Status Code: %s\n", statusCode);
+	// printf("Main Message: %s\n", message);
+	if(strcmp(message, "\r") != 0)
+		printf("[%s] < %s\n", statusCode, message);
+
 	return message;
+}
+
+void sendCmd(int sockfd, char mainCMD[], char* contentCMD) {
+	write(sockfd, mainCMD, strlen(mainCMD));
+	write(sockfd, contentCMD, strlen(contentCMD));
+	write(sockfd, "\n", 1);
+	printf("> %s%s\n", mainCMD, contentCMD);
 }
 
 // https://en.wikipedia.org/wiki/List_of_FTP_server_return_codes
 int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD) {
-	write(sockfd, mainCMD, strlen(mainCMD));
-	write(sockfd, contentCMD, strlen(contentCMD));
-	write(sockfd, "\n", 1);
+	sendCmd(sockfd, mainCMD, contentCMD);
 	
 	while(true) {
 		char statusCode[4];
@@ -193,9 +201,7 @@ int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD) {
 			
 			// Command not accepted, but we can send it again.
 			case '4':
-				write(sockfd, mainCMD, strlen(mainCMD));
-				write(sockfd, contentCMD, strlen(contentCMD));
-				write(sockfd, "\n", 1);
+				sendCmd(sockfd, mainCMD, contentCMD);
 				break;
 
 			// Command had errors!
@@ -278,10 +284,11 @@ int main(int argc, char** argv) {
 		sprintf(errorMsg, "Status [%s] : %s\n", statusCode, response);
 		errorMessage(errorMsg, 4);
 	} else
-		printf("> Connection Established  [%s:%d]\n", clientArgs.host, SERVER_PORT);
+		printf("[%s] < Connection Established  [%s:%d]\n", statusCode, clientArgs.host, SERVER_PORT);
 
 	free(response);
 	sendCommandAndFetchResponse(sockfd, "USER ", clientArgs.user);
+	sendCommandAndFetchResponse(sockfd, "PASS ", clientArgs.password);
 
 	// bytes = write(sockfd, "123\n", 4);
 	// response = readResponse(sockfd, statusCode);

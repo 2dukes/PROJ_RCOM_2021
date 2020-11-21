@@ -10,6 +10,7 @@ struct FTPclientArgs {
     char* password;
     char* host;
     char* urlPath;
+    char* filename;
 };
 
 enum readState { StatusCode, Space, Dash, LineChange, DummyMsgText, MainMsgText, EndMessage};

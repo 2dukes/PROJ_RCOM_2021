@@ -29,7 +29,7 @@ struct FTPclientArgs parseArguments(char* argv) {
 	char* colon = strchr(&argv[4], ':');
 	char* at = strchr(argv, '@');
 	char* hostSlash = strchr(&argv[URL_HEADER_LEN], '/');
-	char* urlPathSlash = strchr(&argv[URL_HEADER_LEN], '/') + 1;
+	char* urlPathSlash = strchr(&argv[URL_HEADER_LEN], '/') + 1; 
 
 	if(colon != NULL && at != NULL) {
 		if(colon >= at)
@@ -68,6 +68,15 @@ struct FTPclientArgs parseArguments(char* argv) {
 	int urlPathLen = strlen(argv) - pathIndex ;
 	clientArgs.urlPath = (char *) malloc(urlPathLen + 1);
 	memcpy(clientArgs.urlPath, &argv[slashIndex + 1], urlPathLen);
+
+	// filename
+	char* filenameSlash = strrchr(argv, '/');
+	int filenameSlashIndex = (filenameSlash - argv);
+	clientArgs.filename = (char *) malloc(strlen(argv) - filenameSlashIndex);
+	memcpy(clientArgs.filename, &argv[filenameSlashIndex + 1], strlen(argv) - filenameSlashIndex - 1); 
+	
+	if(strcmp(clientArgs.filename, "") == 0)
+		errorMessage("Usage: ./client ftp://[<user>:<password>@]<host>/<url-path>\n", 1);
 
 	return clientArgs;
 }
@@ -175,12 +184,10 @@ int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD) {
 			// Request Completed.
 			case '2':
 				return 2;
-				break;
 			
 			// Needs further information (Login Case)
 			case '3':
 				return 3;
-				break;
 			
 			// Command not accepted, but we can send it again.
 			case '4':
@@ -194,7 +201,6 @@ int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD) {
 				char errorMsg[50];
 				sprintf(errorMsg, "Status [%s] : %s\n", statusCode, response);
 				errorMessage(errorMsg, 5);
-				break;
 			}
 			default: 
 				break;
@@ -214,7 +220,7 @@ int main(int argc, char** argv) {
 	printf("Password: %s\n", clientArgs.password);
 	printf("Host: %s\n", clientArgs.host);
 	printf("Url Path: %s\n", clientArgs.urlPath);
-
+	printf("Filename: %s\n", clientArgs.filename);
 
 	struct hostent* hostInfo = getIP(clientArgs.host);
 

@@ -74,9 +74,9 @@ struct FTPclientArgs parseArguments(char* argv) {
 	return clientArgs;
 }
 
-struct hostent getIP(char* hostName)
+struct hostent* getIP(char* hostName)
 {
-	struct hostent* h;
+	struct hostent* h = (struct hostent *) malloc(sizeof(struct hostent));
 					
 	/*
 	struct hostent {
@@ -98,7 +98,7 @@ struct hostent getIP(char* hostName)
 	printf("Host name  : %s\n", h->h_name);
 	printf("IP Address : %s\n",inet_ntoa(*((struct in_addr *)h->h_addr)));
 
-	return *h;
+	return h;
 }
 
 
@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
 	printf("Url Path: %s\n", clientArgs.urlPath);
 
 
-	struct hostent hostInfo = getIP(clientArgs.host);
+	struct hostent* hostInfo = getIP(clientArgs.host);
 
 	int	sockfd;
 	struct	sockaddr_in server_addr;
@@ -140,10 +140,9 @@ int main(int argc, char** argv) {
 			char sa_data[14]; // Protocol address
 		};
 	*/
-
 	bzero((char*)&server_addr,sizeof(server_addr));
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR);	/*32 bit Internet address network byte ordered*/
+	server_addr.sin_addr.s_addr = inet_addr(inet_ntoa(*((struct in_addr *)hostInfo->h_addr)));	/*32 bit Internet address network byte ordered*/
 	server_addr.sin_port = htons(SERVER_PORT);		/*server TCP port must be network byte ordered */
     
 	/*open an TCP socket*/
@@ -159,7 +158,6 @@ int main(int argc, char** argv) {
 		exit(0);
 	}
     	/*send a string to the server*/
-	sleep(2);
 	char buf[2];
 	while(1) {
 		bytes = read(sockfd, buf, 1);

@@ -287,8 +287,11 @@ int main(int argc, char** argv) {
 		printf("[%s] < Connection Established  [%s:%d]\n", statusCode, clientArgs.host, SERVER_PORT);
 
 	free(response);
-	sendCommandAndFetchResponse(sockfd, "USER ", clientArgs.user);
-	sendCommandAndFetchResponse(sockfd, "PASS ", clientArgs.password);
+	int ret = sendCommandAndFetchResponse(sockfd, "USER ", clientArgs.user);
+	if(ret == 3) 
+		sendCommandAndFetchResponse(sockfd, "PASS ", clientArgs.password);
+	
+
 
 	// bytes = write(sockfd, "123\n", 4);
 	// response = readResponse(sockfd, statusCode);

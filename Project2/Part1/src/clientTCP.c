@@ -216,6 +216,11 @@ int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD) {
 	}
 }
 
+// Parse Passive Mode String in order to fetch Port and IP Address.
+char* parsePassiveModeArgs(char* response, int* port) {
+	return "";
+}
+
 int openSocketAndConnect(struct hostent* hostInfo) {
 	int	sockfd;
 	struct sockaddr_in server_addr;
@@ -291,8 +296,11 @@ int main(int argc, char** argv) {
 	if(ret == 3) 
 		sendCommandAndFetchResponse(sockfd, "PASS ", clientArgs.password);
 	
+	write(sockfd, "PASV\n", 5);
+	response = readResponse(sockfd, statusCode);
 
-
+	int* port;
+	char* ipAdr = parsePassiveModeArgs(response, port);
 	// bytes = write(sockfd, "123\n", 4);
 	// response = readResponse(sockfd, statusCode);
 

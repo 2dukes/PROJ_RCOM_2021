@@ -126,7 +126,9 @@ enum readState getState(char character, enum readState previousState) {
 		return DummyMsgText;
 	}
 	else if(character == '-')
-		return Dash;
+		if(previousState == MainMsgText)
+			return previousState;
+		else return Dash;
 	else {
 		if(previousState == Space || previousState == MainMsgText)
 			return MainMsgText;
@@ -145,8 +147,7 @@ char* readResponse(int sockfd, char* statusCode) {
 	while(rStatus != EndMessage) {
 		read(sockfd, &c, 1);
 		rStatus = getState(c, rStatus);
-		// printf("%c | %d\n", c, rStatus);
-		
+		printf("%c | %d\n", c, rStatus);
 		switch (rStatus)
 		{
 			case StatusCode:
@@ -163,10 +164,12 @@ char* readResponse(int sockfd, char* statusCode) {
 		}
 	}
 
-	// printf("Status Code: %s\n", statusCode);
-	// printf("Main Message: %s\n", message);
-	if(strcmp(message, "\r") != 0)
+	printf("Status Code: %s\n", statusCode);
+	printf("\n-- Main Message: %s\n", message);
+	if(strcmp(message, "\r") != 0) {
 		printf("[%s] < %s\n", statusCode, message);
+		fflush(stdout);
+	}
 
 	return message;
 }
@@ -178,19 +181,34 @@ void sendCmd(int sockfd, char mainCMD[], char* contentCMD) {
 	printf("> %s%s\n", mainCMD, contentCMD);
 }
 
+
+void readServerData(int dataSockfd, char* filename) {
+	FILE* file = fopen(filename, "wb+");
+
+	char c;
+	while(read(dataSockfd, &c, 1) > 0) {
+		fwrite(&c, 1, 1, file);
+	}
+
+	fclose(file);
+}
+
 // https://en.wikipedia.org/wiki/List_of_FTP_server_return_codes
-int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD) {
+int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD, char* filename, int dataSockfd) {
 	sendCmd(sockfd, mainCMD, contentCMD);
-	
+
 	while(true) {
 		char statusCode[4];
 		char* response = readResponse(sockfd, statusCode);
 		switch (statusCode[0])
 		{
 			// Expect Another Reply
-			case '1':
+			case '1': {
+				if(strcmp(mainCMD, "RETR ") == 0) 
+					readServerData(dataSockfd, filename);
+				
 				break;
-
+			}
 			// Request Completed.
 			case '2':
 				return 2;
@@ -206,22 +224,51 @@ int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD) {
 
 			// Command had errors!
 			case '5': {
-				char errorMsg[50];
-				sprintf(errorMsg, "Status [%s] : %s\n", statusCode, response);
-				errorMessage(errorMsg, 5);
+				int errorStatus;
+				sscanf(statusCode, "%d", &errorStatus);
+				exit(errorStatus);
 			}
 			default: 
 				break;
 		}
+		free(response);
 	}
+
 }
 
 // Parse Passive Mode String in order to fetch Port and IP Address.
 char* parsePassiveModeArgs(char* response, int* port) {
-	return "";
+	// (193,137,29,15,202,40) -> 193.137.29.15 | 202 * 256 + 40
+	int nums[6];
+	sscanf(response, "Entering Passive Mode (%d,%d,%d,%d,%d,%d).",&nums[0],&nums[1],&nums[2],&nums[3],&nums[4],&nums[5]);
+
+	char* ip_address = (char *) malloc(0);
+	int ip_index = 0;
+	char aux[5];
+	int len;
+
+	for (int i = 0; i < 4; i++) {
+		sprintf(aux, "%d", nums[i]);
+		len = strlen(aux);
+
+		ip_address = (char* ) realloc(ip_address, ip_index + len + 1);
+
+		memcpy(&ip_address[ip_index], aux, len);
+
+		ip_address[ip_index + len] = '.';
+		ip_index += len + 1; 
+	}
+
+	*port = nums[4] * 256 + nums[5];
+	ip_address[ip_index-1] = '\0';
+
+	printf("Ip Address: %s\n", ip_address);
+	printf("Port: %d\n\n\n", *port);
+
+	return ip_address;
 }
 
-int openSocketAndConnect(struct hostent* hostInfo) {
+int openSocketAndConnect(struct hostent* hostInfo, uint16_t serverPort) {
 	int	sockfd;
 	struct sockaddr_in server_addr;
 	int	bytes;
@@ -247,8 +294,8 @@ int openSocketAndConnect(struct hostent* hostInfo) {
 
 	bzero((char*)&server_addr,sizeof(server_addr));
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_addr.s_addr = ((struct in_addr *)hostInfo->h_addr)->s_addr;	/*32 bit Internet address network byte ordered*/
-	server_addr.sin_port = htons(SERVER_PORT);		/*server TCP port must be network byte ordered */
+	server_addr.sin_addr = *((struct in_addr *)hostInfo->h_addr);	/*32 bit Internet address network byte ordered*/
+	server_addr.sin_port = htons(serverPort);		/*server TCP port must be network byte ordered */
     	
 	/*open an TCP socket*/
 	if ((sockfd = socket(AF_INET,SOCK_STREAM,0)) < 0) 
@@ -278,7 +325,8 @@ int main(int argc, char** argv) {
 
 	struct hostent* hostInfo = getIP(clientArgs.host);
 	printf("-----------------------------------------------\n\n");
-	int sockfd = openSocketAndConnect(hostInfo);
+	int sockfd = openSocketAndConnect(hostInfo, SERVER_PORT);
+	int dataSockfd = -1;
 
 	/* Read Server Welcoming message */
 	char statusCode[4];
@@ -292,31 +340,34 @@ int main(int argc, char** argv) {
 		printf("[%s] < Connection Established  [%s:%d]\n", statusCode, clientArgs.host, SERVER_PORT);
 
 	free(response);
-	int ret = sendCommandAndFetchResponse(sockfd, "USER ", clientArgs.user);
+	int ret = sendCommandAndFetchResponse(sockfd, "USER ", clientArgs.user, clientArgs.filename, dataSockfd);
 	if(ret == 3) 
-		sendCommandAndFetchResponse(sockfd, "PASS ", clientArgs.password);
+		sendCommandAndFetchResponse(sockfd, "PASS ", clientArgs.password, clientArgs.filename, dataSockfd);
 	
 	write(sockfd, "PASV\n", 5);
 	response = readResponse(sockfd, statusCode);
 
-	int* port;
+	int* port = malloc(sizeof(int));
 	char* ipAdr = parsePassiveModeArgs(response, port);
-	// bytes = write(sockfd, "123\n", 4);
-	// response = readResponse(sockfd, statusCode);
-
-	// if(statusCode[0] != '2') {
-	// 	char errorMsg[50];
-	// 	sprintf(errorMsg, "Status [%s] : %s\n", statusCode, response);
-	// 	errorMessage(errorMsg, 4);
-	// }
-
-
+	
+	struct hostent* dataHostInfo = getIP(ipAdr);
+	dataSockfd = openSocketAndConnect(dataHostInfo, *port);
+	
+	ret = sendCommandAndFetchResponse(sockfd, "RETR ", clientArgs.urlPath, clientArgs.filename, dataSockfd);
+	if(ret == 2) 
+		printf("> Finished file download!\n");
+	else
+		printf("> Error downloading file!\n");
+	
 	// free((void *) hostInfo);
+	free(ipAdr);
+	free(port);
 	free(clientArgs.user);
 	free(clientArgs.password);
 	free(clientArgs.host);
 	free(clientArgs.urlPath);
 	close(sockfd);
+	close(dataSockfd);
 	exit(0);
 }
 

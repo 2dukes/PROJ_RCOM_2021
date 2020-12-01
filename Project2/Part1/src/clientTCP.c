@@ -17,7 +17,7 @@
 
 
 void errorMessage(char* error, int statusCode) {
-	printf(error);
+	printf("%s\n", error);
 	exit(statusCode);
 }
 
@@ -147,7 +147,8 @@ char* readResponse(int sockfd, char* statusCode) {
 	while(rStatus != EndMessage) {
 		read(sockfd, &c, 1);
 		rStatus = getState(c, rStatus);
-		printf("%c | %d\n", c, rStatus);
+		// printf("%c | %d\n", c, rStatus);
+		// printf("%s\n", message);
 		switch (rStatus)
 		{
 			case StatusCode:
@@ -164,8 +165,9 @@ char* readResponse(int sockfd, char* statusCode) {
 		}
 	}
 
-	printf("Status Code: %s\n", statusCode);
-	printf("\n-- Main Message: %s\n", message);
+	message[msgIndex] = '\0';
+	// printf("Status Code: %s\n", statusCode);
+	// printf("\n-- Main Message: %s\n", message);
 	if(strcmp(message, "\r") != 0) {
 		printf("[%s] < %s\n", statusCode, message);
 		fflush(stdout);
@@ -262,9 +264,6 @@ char* parsePassiveModeArgs(char* response, int* port) {
 	*port = nums[4] * 256 + nums[5];
 	ip_address[ip_index-1] = '\0';
 
-	printf("Ip Address: %s\n", ip_address);
-	printf("Port: %d\n\n\n", *port);
-
 	return ip_address;
 }
 
@@ -352,7 +351,10 @@ int main(int argc, char** argv) {
 	
 	struct hostent* dataHostInfo = getIP(ipAdr);
 	dataSockfd = openSocketAndConnect(dataHostInfo, *port);
-	
+	printf("\n-----------------------------------------------\n");
+	printf("< Connection Established  [%s:%d]\n", ipAdr, *port);
+	printf("-----------------------------------------------\n\n");
+
 	ret = sendCommandAndFetchResponse(sockfd, "RETR ", clientArgs.urlPath, clientArgs.filename, dataSockfd);
 	if(ret == 2) 
 		printf("> Finished file download!\n");

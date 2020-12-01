@@ -166,6 +166,7 @@ char* readResponse(int sockfd, char* statusCode) {
 	}
 
 	message[msgIndex] = '\0';
+	statusCode[3] = '\0';
 	// printf("Status Code: %s\n", statusCode);
 	// printf("\n-- Main Message: %s\n", message);
 	if(strcmp(message, "\r") != 0) {
@@ -184,15 +185,32 @@ void sendCmd(int sockfd, char mainCMD[], char* contentCMD) {
 }
 
 
-void readServerData(int dataSockfd, char* filename) {
+void readServerData(int dataSockfd, char* filename, int fileSize) {
 	FILE* file = fopen(filename, "wb+");
 
+	int numCharsRead = 0;
 	char c;
+	int percentageFileLoaded = 0;
+	int nextPoint = 5;
 	while(read(dataSockfd, &c, 1) > 0) {
+		percentageFileLoaded = (float) ++numCharsRead / fileSize * 100;
+		if(percentageFileLoaded == nextPoint) {
+			nextPoint += 5;
+			printf("Downloaded %d%% of the file.\n", percentageFileLoaded);
+		}
+		
+		// printf("Downloaded %.2f%% of the file.\n", (float) ++numCharsRead / fileSize * 100);
 		fwrite(&c, 1, 1, file);
 	}
 
 	fclose(file);
+}
+
+int parseFileSize(char* response) {
+	char* auxString = strrchr(response, '(');
+	int fileSize;
+	sscanf(auxString, "(%d bytes).", &fileSize);
+	return fileSize;
 }
 
 // https://en.wikipedia.org/wiki/List_of_FTP_server_return_codes
@@ -206,8 +224,11 @@ int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD, ch
 		{
 			// Expect Another Reply
 			case '1': {
-				if(strcmp(mainCMD, "RETR ") == 0) 
-					readServerData(dataSockfd, filename);
+				if(strcmp(mainCMD, "RETR ") == 0) {
+					int fileSize = parseFileSize(response);
+					readServerData(dataSockfd, filename, fileSize);
+				}
+					
 				
 				break;
 			}

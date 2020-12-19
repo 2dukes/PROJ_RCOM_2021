@@ -1,0 +1,16 @@
+F 0/2 -> TUX 2 -> VLAN 41
+F 0/1 -> TUX 3 -> VLAN 40
+F 0/5 -> TUX 4 -> VLAN 40 (ETH0)
+F 0/9 -> TUX 4 -> VLAN 41 (ETH1)
+
+NAT Inside GE 0/0 -> F 0/13 (VLAN 41)
+
+`Exp 4`
+
+route del -net 0.0.0.0 gw 192.168.178.1 netmask 0.0.0.0 dev eth0
+
+Sem NAT qualquer ping de um PC que não o router para o netlab não funciona porque o netlab não sabe como chegar à subrede local. No entanto um ping através do router funcionaria, porque ele sabe como chegar ao router. O problema é chegar atrás porque o endereço IP referencido é o do próprio PC e, como não há NAT configurado, não há tradução de endereços.
+
+Com NAT, como há tradução de endereços através de nat inside e outside, o endereço para o qual o netlab tem que responder será o de nat outside, que já está configurado. Portanto o ping sucede.
+
+

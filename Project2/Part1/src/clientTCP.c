@@ -15,12 +15,13 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-
+// Error messages handler
 void errorMessage(char* error, int statusCode) {
 	printf("%s\n", error);
 	exit(statusCode);
 }
 
+// Parse URL arguments
 struct FTPclientArgs parseArguments(char* argv) {
 	int atIndex;
 
@@ -83,6 +84,7 @@ struct FTPclientArgs parseArguments(char* argv) {
 	return clientArgs;
 }
 
+// Gets the IP of a specific hostname
 struct hostent* getIP(char* hostName)
 {
 	struct hostent* h = (struct hostent *) malloc(sizeof(struct hostent));
@@ -110,6 +112,7 @@ struct hostent* getIP(char* hostName)
 	return h;
 }
 
+// State Machine handler that parses the server response
 enum readState getState(char character, enum readState previousState) {
 	if(isdigit(character) && (previousState == LineChange || previousState == StatusCode))
 		return StatusCode;
@@ -137,9 +140,9 @@ enum readState getState(char character, enum readState previousState) {
 }
 
 // https://stackoverflow.com/questions/29152359/how-to-read-multiline-response-from-ftp-server
+// Reads a response and determines what to do according to the state of each char
 char* readResponse(int sockfd, char* statusCode) {
 	enum readState rStatus = LineChange;
-	// enum readState { StatusCode, Space, Dash, LineChange, DummyMsgText, MainMsgText, EndMessage};
 	char c;
 	int statusCodeIndex = 0, msgIndex = 0;
 	char* message = (char *) malloc(0);
@@ -147,8 +150,7 @@ char* readResponse(int sockfd, char* statusCode) {
 	while(rStatus != EndMessage) {
 		read(sockfd, &c, 1);
 		rStatus = getState(c, rStatus);
-		// printf("%c | %d\n", c, rStatus);
-		// printf("%s\n", message);
+		
 		switch (rStatus)
 		{
 			case StatusCode:
@@ -167,8 +169,7 @@ char* readResponse(int sockfd, char* statusCode) {
 
 	message[msgIndex] = '\0';
 	statusCode[3] = '\0';
-	// printf("Status Code: %s\n", statusCode);
-	// printf("\n-- Main Message: %s\n", message);
+	
 	if(strcmp(message, "\r") != 0) {
 		printf("[%s] < %s\n", statusCode, message);
 		fflush(stdout);
@@ -177,6 +178,7 @@ char* readResponse(int sockfd, char* statusCode) {
 	return message;
 }
 
+// Send a command
 void sendCmd(int sockfd, char mainCMD[], char* contentCMD) {
 	write(sockfd, mainCMD, strlen(mainCMD));
 	write(sockfd, contentCMD, strlen(contentCMD));
@@ -184,7 +186,7 @@ void sendCmd(int sockfd, char mainCMD[], char* contentCMD) {
 	printf("> %s%s\n", mainCMD, contentCMD);
 }
 
-
+// Loads all the info transferred to a local file
 void readServerData(int dataSockfd, char* filename, int fileSize) {
 	FILE* file = fopen(filename, "wb+");
 
@@ -199,13 +201,13 @@ void readServerData(int dataSockfd, char* filename, int fileSize) {
 			printf("Downloaded %d%% of the file.\n", percentageFileLoaded);
 		}
 		
-		// printf("Downloaded %.2f%% of the file.\n", (float) ++numCharsRead / fileSize * 100);
 		fwrite(&c, 1, 1, file);
 	}
 
 	fclose(file);
 }
 
+// Gets the size of the transferred file 
 int parseFileSize(char* response) {
 	char* auxString = strrchr(response, '(');
 	int fileSize;
@@ -214,6 +216,7 @@ int parseFileSize(char* response) {
 }
 
 // https://en.wikipedia.org/wiki/List_of_FTP_server_return_codes
+// Sends a command and waits for a response
 int sendCommandAndFetchResponse(int sockfd, char mainCMD[], char* contentCMD, char* filename, int dataSockfd) {
 	sendCmd(sockfd, mainCMD, contentCMD);
 
@@ -288,6 +291,7 @@ char* parsePassiveModeArgs(char* response, int* port) {
 	return ip_address;
 }
 
+// Opens a connection
 int openSocketAndConnect(struct hostent* hostInfo, uint16_t serverPort) {
 	int	sockfd;
 	struct sockaddr_in server_addr;
